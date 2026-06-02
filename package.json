@@ -8,7 +8,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "check:pcloud": "tsx scripts/check-pcloud.ts"
+    "check:pcloud": "node --env-file-if-exists=.env --import tsx scripts/check-pcloud.ts"
   },
   "keywords": [],
   "author": "",
