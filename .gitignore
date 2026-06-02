@@ -4,6 +4,7 @@ dist/
 .env
 .env.local
 *.log
+vlogs.txt
 runtime/
 
 .vercel
