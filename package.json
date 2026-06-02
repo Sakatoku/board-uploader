@@ -2,7 +2,6 @@
   "name": "board-uploader",
   "version": "1.0.0",
   "description": "Whiteboard-style shared uploader app",
-  "type": "module",
   "scripts": {
     "dev": "tsx watch dev-server.ts",
     "test": "vitest run",

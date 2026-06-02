@@ -8,14 +8,13 @@
  */
 
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import express from "express";
 import { createApp } from "./lib/app";
 import { logger } from "./lib/logger";
 
 process.env.STORAGE_DRIVER = process.env.STORAGE_DRIVER || "mock";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// CommonJS module: __dirname is provided by the runtime.
 const PUBLIC_DIR = path.join(__dirname, "public");
 const PORT = Number(process.env.PORT) || 3000;
 
