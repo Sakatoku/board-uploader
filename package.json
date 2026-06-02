@@ -1,0 +1,28 @@
+{
+  "name": "board-uploader",
+  "version": "1.0.0",
+  "description": "Whiteboard-style shared uploader app",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch dev-server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "check:pcloud": "tsx scripts/check-pcloud.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^2.1.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
