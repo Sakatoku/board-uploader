@@ -8,13 +8,10 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import type { Viewport } from "../types";
+import { zoomToward } from "../lib/geometry";
 import { log } from "../lib/log";
 
-export const MIN_ZOOM = 0.2;
-export const MAX_ZOOM = 4;
 const ZOOM_STEP = 1.2;
-
-const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
 
 interface UseViewportArgs {
   canvasRef: RefObject<HTMLElement>;
@@ -67,20 +64,11 @@ export function useViewport({ canvasRef, viewRef }: UseViewportArgs): UseViewpor
       const canvas = canvasRef.current;
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
-      const v = viewRef.current;
-      const nextZoom = clampZoom(nextZoomRaw);
-      if (nextZoom === v.zoom) return;
-
-      const ax = anchorClientX - rect.left;
-      const ay = anchorClientY - rect.top;
-      // World point under the anchor must map to the same screen point after.
-      const worldX = (ax - v.panX) / v.zoom;
-      const worldY = (ay - v.panY) / v.zoom;
-      setView({
-        zoom: nextZoom,
-        panX: ax - worldX * nextZoom,
-        panY: ay - worldY * nextZoom,
-      });
+      const current = viewRef.current;
+      const next = zoomToward(current, nextZoomRaw, anchorClientX - rect.left, anchorClientY - rect.top);
+      if (next !== current) {
+        setView(next);
+      }
     },
     [canvasRef, viewRef, setView],
   );
