@@ -1,0 +1,49 @@
+name: CI
+
+# Gate for the "main push = production deploy" workflow: typecheck the API and
+# the web app, run the unit tests, and verify the production build before code
+# reaches Vercel. Public repo, Linux runner → free.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "LICENSE"
+  pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "LICENSE"
+
+# Cancel superseded runs for the same ref so quick successive pushes don't pile
+# up runner usage.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: typecheck · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck API (CommonJS)
+        run: npm run typecheck
+
+      - name: Typecheck web (Vite/React)
+        run: npm run typecheck:web
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
