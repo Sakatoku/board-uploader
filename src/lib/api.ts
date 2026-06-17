@@ -1,3 +1,4 @@
+import { upload } from "@vercel/blob/client";
 import type { Board, Point } from "../types";
 import { log } from "./log";
 
@@ -72,8 +73,39 @@ export async function createNote(boardId: string, text: string, point: Point): P
   return payload.board;
 }
 
+interface AppConfig {
+  uploadStrategy: "direct" | "proxy";
+  maxUploadBytes: number | null;
+}
+
+let configPromise: Promise<AppConfig> | null = null;
+
+/** Fetch (and cache) the server's upload capability. */
+export function getConfig(): Promise<AppConfig> {
+  configPromise ??= apiFetch<AppConfig>("/api/config").catch((error) => {
+    // On failure, fall back to the always-available proxy path.
+    configPromise = null;
+    log("config fetch failed (assuming proxy)", String(error), "warn");
+    return { uploadStrategy: "proxy", maxUploadBytes: null };
+  });
+  return configPromise;
+}
+
+/** Place uploaded files starting at `point`, fanning out so they don't stack. */
+function placement(point: Point, index: number): Point {
+  return { x: point.x + index * 28, y: point.y + index * 28 };
+}
+
 export async function uploadFiles(boardId: string, files: File[], point: Point): Promise<Board> {
-  log("uploadFiles", `point=(${point.x},${point.y}) files=${files.length}`);
+  const config = await getConfig();
+  log("uploadFiles", `strategy=${config.uploadStrategy} point=(${point.x},${point.y}) files=${files.length}`);
+  return config.uploadStrategy === "direct"
+    ? uploadFilesDirect(boardId, files, point, config)
+    : uploadFilesProxy(boardId, files, point);
+}
+
+/** Proxy path: multipart through the function (mock/pcloud, local dev). */
+async function uploadFilesProxy(boardId: string, files: File[], point: Point): Promise<Board> {
   const formData = new FormData();
   files.forEach((file) => formData.append("files", file));
   formData.append("x", String(point.x));
@@ -82,6 +114,51 @@ export async function uploadFiles(boardId: string, files: File[], point: Point):
   const payload = await apiFetch<{ board: Board }>(`/api/boards/${boardId}/files`, {
     method: "POST",
     body: formData,
+  });
+  return payload.board;
+}
+
+/**
+ * Direct path: upload each file straight to the storage backend (bypassing the
+ * function body cap), then record the resulting URLs as board items.
+ */
+async function uploadFilesDirect(
+  boardId: string,
+  files: File[],
+  point: Point,
+  config: AppConfig,
+): Promise<Board> {
+  if (config.maxUploadBytes != null) {
+    const tooBig = files.find((file) => file.size > config.maxUploadBytes!);
+    if (tooBig) {
+      const mb = (config.maxUploadBytes / (1024 * 1024)).toFixed(0);
+      throw new Error(`「${tooBig.name}」が大きすぎます（上限 ${mb}MB）。`);
+    }
+  }
+
+  const uploaded = await Promise.all(
+    files.map(async (file, index) => {
+      log("direct upload →", `${file.name} (${file.size}B)`);
+      const result = await upload(`blobs/${file.name}`, file, {
+        access: "public",
+        contentType: file.type || undefined,
+        handleUploadUrl: `/api/boards/${boardId}/upload-token`,
+      });
+      const pos = placement(point, index);
+      return {
+        url: result.url,
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        size: file.size,
+        x: pos.x,
+        y: pos.y,
+      };
+    }),
+  );
+
+  const payload = await apiFetch<{ board: Board }>(`/api/boards/${boardId}/files/attach`, {
+    method: "POST",
+    body: JSON.stringify({ files: uploaded }),
   });
   return payload.board;
 }

@@ -55,10 +55,33 @@ export interface HealthResult {
   details?: Record<string, unknown>;
 }
 
+/**
+ * Optional capability: let the browser upload bytes *directly* to the backend,
+ * bypassing the serverless function (and its ~4.5MB body cap on Vercel Free).
+ * Only backends that can mint a scoped, client-side upload token implement it.
+ */
+export interface ClientUploadStore {
+  /** Largest single upload the client may perform; advertised to the UI. */
+  readonly maxBytes: number;
+  /**
+   * Handle the provider's client-upload handshake (e.g. token generation) and
+   * return the JSON the client SDK expects. `request` carries the original
+   * HTTP request so the provider can verify signatures; `body` is its parsed
+   * JSON payload.
+   */
+  handleTokenRequest(input: {
+    body: unknown;
+    request: unknown;
+    boardId: string;
+  }): Promise<unknown>;
+}
+
 export interface StorageProvider {
   readonly name: string;
   readonly metadata: MetadataStore;
   readonly blobs: BlobStore;
+  /** Present only when the backend supports browser-direct uploads. */
+  readonly clientUpload?: ClientUploadStore;
   /** Cheap connectivity probe used by /api/health and at boot. */
   health(): Promise<HealthResult>;
 }

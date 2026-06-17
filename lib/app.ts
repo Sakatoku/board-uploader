@@ -17,6 +17,7 @@ import { HttpError } from "./http/errors";
 import {
   addFiles,
   addNote,
+  attachFiles,
   createBoard,
   getBoard,
   resolveFile,
@@ -65,6 +66,42 @@ export function createApp(): Express {
   app.get("/api/health", wrap(async (_req, res) => {
     const health = await getStorage().health();
     res.status(health.ok ? 200 : 503).json(health);
+  }));
+
+  // Tells the client how to upload: "direct" (browser → storage, lifts the
+  // ~4.5MB function cap) when the backend supports it, else "proxy" (multipart
+  // through the function, used by mock/pcloud and local dev).
+  app.get("/api/config", (_req, res) => {
+    const storage = getStorage();
+    const direct = storage.clientUpload;
+    res.json({
+      uploadStrategy: direct ? "direct" : "proxy",
+      maxUploadBytes: direct ? direct.maxBytes : null,
+    });
+  });
+
+  // Direct-upload handshake: the @vercel/blob client SDK posts here to obtain a
+  // scoped, short-lived upload token, then uploads straight to the store.
+  app.post("/api/boards/:boardId/upload-token", wrap(async (req, res) => {
+    const storage = getStorage();
+    if (!storage.clientUpload) {
+      res.status(400).json({ error: "Direct upload is not supported by this backend." });
+      return;
+    }
+    const result = await storage.clientUpload.handleTokenRequest({
+      body: req.body,
+      request: req,
+      boardId: param(req, "boardId"),
+    });
+    res.json(result);
+  }));
+
+  // Record items for files the browser uploaded directly (read side of the
+  // direct-upload path).
+  app.post("/api/boards/:boardId/files/attach", wrap(async (req, res) => {
+    const files = Array.isArray(req.body?.files) ? req.body.files : [];
+    const result = await attachFiles(getStorage(), param(req, "boardId"), files);
+    res.status(201).json(result);
   }));
 
   app.post("/api/boards", wrap(async (req, res) => {

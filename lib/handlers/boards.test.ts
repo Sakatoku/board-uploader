@@ -4,6 +4,7 @@ import { HttpError } from "../http/errors";
 import {
   addFiles,
   addNote,
+  attachFiles,
   createBoard,
   getBoard,
   resolveFile,
@@ -74,6 +75,37 @@ describe("addFiles", () => {
     await expect(addFiles(storage, boardId, [], {})).rejects.toMatchObject({
       statusCode: 400,
     });
+  });
+});
+
+describe("attachFiles (direct-upload path)", () => {
+  const blobUrl = "https://store123.public.blob.vercel-storage.com/blobs/a-xyz.png";
+
+  it("records items for already-uploaded blob URLs", async () => {
+    const boardId = await newBoardId();
+    const { items, board } = await attachFiles(storage, boardId, [
+      { url: blobUrl, fileName: "a.png", mimeType: "image/png", size: 1234, x: 40, y: 50 },
+    ]);
+    expect(items).toHaveLength(1);
+    expect(items[0].type).toBe("image");
+    expect(items[0].blob.key).toBe(blobUrl);
+    expect(items[0].blob.provider).toBe("mock");
+    expect({ x: items[0].x, y: items[0].y }).toEqual({ x: 40, y: 50 });
+    expect(board.items).toHaveLength(1);
+  });
+
+  it("rejects URLs that are not on the blob host", async () => {
+    const boardId = await newBoardId();
+    await expect(
+      attachFiles(storage, boardId, [
+        { url: "https://evil.example.com/x.png", fileName: "x.png", mimeType: "image/png", size: 1 },
+      ]),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("rejects when no files are provided", async () => {
+    const boardId = await newBoardId();
+    await expect(attachFiles(storage, boardId, [])).rejects.toMatchObject({ statusCode: 400 });
   });
 });
 

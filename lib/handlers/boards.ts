@@ -126,6 +126,74 @@ export async function addFiles(
   return { items: newItems, board: serializeBoard(board) };
 }
 
+export interface AttachFileInput {
+  url?: unknown;
+  fileName?: unknown;
+  mimeType?: unknown;
+  size?: unknown;
+  x?: unknown;
+  y?: unknown;
+}
+
+/**
+ * Attach files the browser already uploaded directly to the storage backend
+ * (see ClientUploadStore). The client sends each resulting blob URL plus its
+ * metadata; we validate and record them as items. This is the read side of the
+ * direct-upload path that lifts the ~4.5MB serverless body cap.
+ */
+export async function attachFiles(
+  storage: StorageProvider,
+  boardId: string,
+  files: AttachFileInput[],
+): Promise<{ items: FileItem[]; board: Board }> {
+  const board = await loadBoard(storage, boardId);
+  if (!Array.isArray(files) || files.length === 0) {
+    throw badRequest("At least one uploaded file is required.");
+  }
+
+  const newItems: FileItem[] = files.map((file) => {
+    const url = typeof file.url === "string" ? file.url : "";
+    // Only accept https URLs on the provider's own host: a blob ref is a
+    // capability (anyone with the function can serve it), so don't let a client
+    // smuggle in an arbitrary external URL.
+    if (!isAllowedBlobUrl(url)) {
+      throw badRequest("A valid uploaded file URL is required.");
+    }
+    const fileName = typeof file.fileName === "string" && file.fileName ? file.fileName : "file";
+    const mimeType =
+      typeof file.mimeType === "string" && file.mimeType ? file.mimeType : "application/octet-stream";
+    const size = toFiniteNumber(file.size, 0);
+
+    return makeFileItem({
+      fileName,
+      mimeType,
+      size,
+      blob: { provider: storage.name, key: url },
+      x: toFiniteNumber(file.x, 120),
+      y: toFiniteNumber(file.y, 120),
+    });
+  });
+
+  board.items.push(...newItems);
+  touchBoard(board);
+  await storage.metadata.putBoard(board);
+  for (const item of newItems) {
+    logger.info("file.attach", { boardId, itemId: item.id, mimeType: item.mimeType, size: item.size });
+  }
+
+  return { items: newItems, board: serializeBoard(board) };
+}
+
+/** Accept only https URLs pointing at the Vercel Blob public host. */
+function isAllowedBlobUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname.endsWith(".blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
+}
+
 export async function updateItemPosition(
   storage: StorageProvider,
   boardId: string,

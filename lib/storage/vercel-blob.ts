@@ -20,10 +20,12 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { put, del, list } from "@vercel/blob";
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import type {
   BlobInput,
   BlobReadResult,
   BlobStore,
+  ClientUploadStore,
   HealthResult,
   MetadataStore,
   StorageProvider,
@@ -35,6 +37,13 @@ export interface VercelBlobProviderConfig {
   /** Falls back to the SDK's BLOB_READ_WRITE_TOKEN env var when omitted. */
   token?: string;
 }
+
+/**
+ * Cap on a single browser-direct upload. Well above the ~4.5MB function-body
+ * limit this path exists to bypass, but bounded so a scoped client token can't
+ * be abused to write arbitrarily large objects to the store.
+ */
+const MAX_DIRECT_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 export class VercelBlobStorageProvider implements StorageProvider {
   readonly name = "vercel-blob";
@@ -162,6 +171,29 @@ export class VercelBlobStorageProvider implements StorageProvider {
     directUrl: async (ref: BlobRef): Promise<string | null> => ref.key,
     delete: async (ref: BlobRef): Promise<void> => {
       await del(ref.key, this.opts({}));
+    },
+  };
+
+  readonly clientUpload: ClientUploadStore = {
+    maxBytes: MAX_DIRECT_UPLOAD_BYTES,
+    handleTokenRequest: async ({ body, request, boardId }) => {
+      // The @vercel/blob client SDK drives a two-step handshake: it asks us for
+      // a scoped token, uploads straight to Blob, then (on Vercel) pings us back
+      // with the result. We don't rely on the completion ping to attach the
+      // item — the client calls /files/attach explicitly — but still log it.
+      return handleUpload({
+        token: this.token,
+        body: body as HandleUploadBody,
+        request: request as Parameters<typeof handleUpload>[0]["request"],
+        onBeforeGenerateToken: async () => ({
+          addRandomSuffix: true,
+          maximumSizeInBytes: MAX_DIRECT_UPLOAD_BYTES,
+          tokenPayload: JSON.stringify({ boardId }),
+        }),
+        onUploadCompleted: async ({ blob }) => {
+          logger.info("blob.client_upload.completed", { boardId, url: blob.url });
+        },
+      });
     },
   };
 
