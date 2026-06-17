@@ -1,9 +1,15 @@
 # Deployment runbook
 
-Board Uploader runs as a single Express app: static assets in `public/` are
-served by Vercel's CDN, and `api/index.ts` is the serverless function that
-handles every `/api/*` route (see `vercel.json`). Storage is pluggable via
-`STORAGE_DRIVER`; production uses **Vercel Blob**.
+Board Uploader is a Vite + React frontend plus an Express serverless API:
+
+- `vite build` compiles the React app (`src/`) to `dist/`, which Vercel serves
+  as static assets (`buildCommand` / `outputDirectory` in `vercel.json`).
+- `api/index.ts` is the serverless function handling every `/api/*` route.
+- Storage is pluggable via `STORAGE_DRIVER`; production uses **Vercel Blob**.
+
+> **Do not add `"type":"module"` to `package.json`.** The API function is
+> CommonJS; ESM breaks it on Vercel (`ERR_MODULE_NOT_FOUND`). The React source
+> is ESM but bundled by Vite, so it is unaffected.
 
 ## 1. One-time Vercel setup (CLI)
 
@@ -45,6 +51,14 @@ structured logs above the error pinpoint which call broke and why.
 
 ## 4. Deploy
 
+Optionally verify the production build locally first:
+
+```sh
+npm run build        # vite build → dist/
+```
+
+Then deploy (Vercel runs `vite build` via `vercel.json` `buildCommand`):
+
 ```sh
 vercel --prod
 ```
@@ -67,7 +81,46 @@ board, add a note, and upload a file.
 a new backend (e.g. S3/R2) means implementing one `StorageProvider` and adding
 a branch in `lib/storage/index.ts` — handlers and UI are untouched.
 
-## Known limitation (tracked for a later increment)
+## Known limitations (tracked for a later increment)
+
+### Upload size cap
 
 Vercel Free caps request bodies at ~4.5MB, so uploads larger than that fail
 through the function. A client-direct upload path is planned to lift this.
+
+### Board metadata staleness (Vercel Blob CDN cache)
+
+The mutable board document (`boards/<id>.json`) lives in Vercel Blob. Every
+public Blob URL is served through a CDN whose **minimum cache TTL is 60s**, so
+after an overwrite (adding a note, uploading a file) a plain fetch of the stable
+URL can return the *pre-write* body for up to a minute. Symptoms observed during
+MVP:
+
+- A freshly uploaded image 404s on its `/content` route until the cache catches
+  up, and a drag of a just-added item PATCHes against a board that does not yet
+  contain it (404).
+- Rapid back-to-back adds can lose an item (read-modify-write on a stale base).
+
+**Root cause: the CDN edge cache, not the origin.** Vercel Blob is
+read-after-write consistent at the origin for an overwrite of the same key; the
+staleness is the cached edge response. An earlier attempt that only appended a
+`?_cb=` query string did not help because the runtime `fetch` cache also has to
+be bypassed.
+
+**Fix (shipped — `lib/storage/vercel-blob.ts`):**
+
+- Reads in `getBoard` force an origin read with a unique query string **and**
+  `cache: "no-store"`, so each board read is read-after-write consistent.
+- `putBoard` sets `cacheControlMaxAge: 60` (the SDK floor) to minimise the
+  staleness window for any path that does not cache-bust (e.g. images).
+
+**Defense in depth (client, `src/`):** position saves still retry a transient
+404 with exponential backoff and keep the on-screen state instead of refreshing;
+`<img>` elements retry loading. This covers the rarer `list()` propagation lag
+(used to resolve a board URL on a cold function instance) and any residual edge.
+
+**If residual inconsistency ever resurfaces** (the proper fix, not currently
+needed): move only the board metadata to a strongly-consistent store (Vercel KV
+/ Upstash Redis). Binaries stay on Vercel Blob. `StorageProvider` already
+separates `metadata` from `blobs`, so this is a metadata-only swap. See
+[ROADMAP.md](./ROADMAP.md).
