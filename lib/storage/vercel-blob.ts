@@ -79,7 +79,14 @@ export class VercelBlobStorageProvider implements StorageProvider {
       if (!url) {
         return null;
       }
-      const bytes = await fetchBytes(url);
+      // Board JSON is mutable, but Vercel Blob serves every public URL through
+      // a CDN whose minimum cache TTL is 60s. After an overwrite (e.g. adding a
+      // note) a plain fetch of the stable URL can return the *pre-write* body
+      // for up to a minute, which makes freshly-added items 404 on the next
+      // request and "disappear". Bust the edge cache with a unique query string
+      // and disable the runtime fetch cache so reads are always read-after-write
+      // consistent.
+      const bytes = await fetchBytes(`${url}?_cb=${Date.now()}`, { cache: "no-store" });
       try {
         return JSON.parse(bytes.toString("utf8")) as Board;
       } catch (error) {
@@ -100,6 +107,10 @@ export class VercelBlobStorageProvider implements StorageProvider {
               contentType: "application/json",
               addRandomSuffix: false,
               allowOverwrite: true,
+              // Minimum allowed (60s). Combined with the cache-busting read in
+              // getBoard this keeps mutable board state fresh; on its own the
+              // SDK floor of 60s would still allow up to a minute of staleness.
+              cacheControlMaxAge: 60,
             }),
           ),
       );
@@ -170,8 +181,8 @@ export class VercelBlobStorageProvider implements StorageProvider {
   }
 }
 
-async function fetchBytes(url: string): Promise<Buffer> {
-  const res = await fetch(url);
+async function fetchBytes(url: string, init?: RequestInit): Promise<Buffer> {
+  const res = await fetch(url, init);
   if (!res.ok) {
     throw new Error(`blob fetch failed: HTTP ${res.status}`);
   }
