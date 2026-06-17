@@ -85,8 +85,25 @@ a branch in `lib/storage/index.ts` — handlers and UI are untouched.
 
 ### Upload size cap
 
-Vercel Free caps request bodies at ~4.5MB, so uploads larger than that fail
-through the function. A client-direct upload path is planned to lift this.
+Vercel Free caps request bodies at ~4.5MB. To lift this, uploads on the
+`vercel-blob` backend go **browser-direct to Blob**, bypassing the function:
+
+- The client asks `GET /api/config`; `uploadStrategy: "direct"` means the
+  backend can mint client tokens (otherwise `"proxy"` — multipart through the
+  function, used by `mock`/`pcloud` and local dev).
+- The browser uploads each file straight to Blob via the `@vercel/blob` client
+  SDK, which handshakes with `POST /api/boards/:id/upload-token` for a scoped,
+  size-capped token (100MB; the function only mints the token, never carries the
+  bytes). No new env var — token minting reuses `BLOB_READ_WRITE_TOKEN`.
+- The client then records the uploaded URLs via
+  `POST /api/boards/:id/files/attach`. (Vercel also pings `onUploadCompleted`
+  after upload; that's logged for diagnostics but the explicit attach call is
+  the source of truth, so the flow also works in local dev.)
+
+> Verify end-to-end on a deployed URL: the browser→Blob upload needs a real
+> token, and the completion ping needs a public callback URL, so `mock` dev
+> exercises only the proxy path. After deploy, upload a >4.5MB file and confirm
+> it lands.
 
 ### Board metadata staleness (Vercel Blob CDN cache)
 
