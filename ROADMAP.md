@@ -3,7 +3,7 @@
 Board Uploader の現状整理と今後の計画。
 方針・制約・ファイルマップ → [CLAUDE.md](./CLAUDE.md)
 
-最終更新: 2026-06-18
+最終更新: 2026-06-19（フロントエンドテスト追加により P1.5 完了）
 
 ---
 
@@ -15,7 +15,7 @@ Board Uploader の現状整理と今後の計画。
 | バックエンド | Express 5 → Vercel Serverless Function（`api/index.ts`）。CommonJS 固定 |
 | ストレージ | Vercel Blob（バイナリ＋ボードJSON）。`StorageProvider` で抽象化（vercel-blob / pcloud / mock） |
 | 整合性 | `cache:"no-store"` ＋ユニーククエリのオリジン直読みで解消。クライアントリトライを多層防御として継続 |
-| テスト | Vitest 42件（domain / handlers / gc / geometry）。useDrag・コンポーネントのテストは未着手 |
+| テスト | Vitest 83件（domain / handlers / gc / geometry / useDrag / コンポーネント）。jsdom 環境でフロントエンドテスト済み |
 | 認証 | Stage-1（書き込みゲート）実装済み。Stage-2（JWT Cookie + QR）は未着手 |
 | CI | GitHub Actions（typecheck×2 + test + build）稼働中 |
 
@@ -30,14 +30,11 @@ Board Uploader の現状整理と今後の計画。
 - ✓ **ストレージ整合性**: CDN キャッシュ遅延を no-store ＋ユニーククエリで解消
 - ✓ **無限キャンバス＋ズーム**: ワールド座標＋useViewport（パン/ピンチ/ホイール）
 - ✓ **孤立 blob GC**: `onUploadCompleted` でマーカー書き込み → 10 分 grace period 後にサイレント GC。`POST /api/admin/gc` で手動トリガーも可。
+- ✓ **フロントエンドテスト**: `useDrag`（ドラッグ座標計算 15件）、`Header`（11件）、`BoardItemView`（15件）を jsdom 環境で追加。計83件。
 
 ---
 
 ## 残タスク
-
-### P1.5 — main 直デプロイを安全にする
-
-- **フロントエンドテスト追記**: `useDrag` のドラッグ座標計算、コンポーネントの軽いレンダリングテスト（jsdom 追加が必要なら検討）
 
 ### P2 — 状況を見て
 
@@ -47,6 +44,15 @@ Board Uploader の現状整理と今後の計画。
 - **デバッグログ UI の去就**: 整合性周りが十分安定したら撤去またはビルドフラグ限定にする（現状: ヘッダー「デバッグ表示」でトグル、既定オフ）。
 
 ### P3 — 仕上げ・将来
+
+- **対応ファイル拡張（video / audio / pdf）**: インラインプレビュー追加。バックエンド・API 変更なし、フロントエンドのみ。
+  - `lib/domain/types.ts` — `ItemType` に `"video" | "audio" | "pdf"` 追加
+  - `lib/domain/board.ts` — `makeFileItem` の MIME 判別拡張（`video/*` → `"video"`, `audio/*` → `"audio"`, `application/pdf` → `"pdf"`）
+  - `src/types.ts` — クライアント側 `isFileItem` ガード同期
+  - `src/components/BoardItemView.tsx` — `<video controls>` / `<audio controls>` / `<iframe>` プレビュー追加、バッジ・card-actions 更新
+  - CSS — プレーヤー・iframe サイズ調整
+  - テスト更新（makeFileItem 判定 + レンダリング）
+  - text/plain 等テキスト系はフェッチが必要なため別タスクに分離
 
 - **ファイル操作の完全化**: 削除 / リネーム / テキスト編集 / 移動の UI と API。削除は確認ダイアログ＋構造化ログ必須。
 

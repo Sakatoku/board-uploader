@@ -1,0 +1,85 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { Header } from "./Header";
+
+const baseProps = {
+  onFiles: vi.fn(),
+  onAddNote: vi.fn(),
+  onToggleDebug: vi.fn(),
+  debugOpen: false,
+  onCopyLink: vi.fn(),
+  writeProtected: false,
+  keySet: false,
+  onEditKey: vi.fn(),
+};
+
+describe("Header", () => {
+  it("renders the brand name", () => {
+    render(<Header {...baseProps} />);
+    expect(screen.getByText("BOARD UPLOADER")).toBeTruthy();
+  });
+
+  it("renders fixed action buttons", () => {
+    render(<Header {...baseProps} />);
+    expect(screen.getByText("テキスト追加")).toBeTruthy();
+    expect(screen.getByText("共有URLをコピー")).toBeTruthy();
+  });
+
+  it("shows 'デバッグ表示' when debugOpen is false", () => {
+    render(<Header {...baseProps} debugOpen={false} />);
+    expect(screen.getByText("デバッグ表示")).toBeTruthy();
+  });
+
+  it("shows 'デバッグ非表示' when debugOpen is true", () => {
+    render(<Header {...baseProps} debugOpen={true} />);
+    expect(screen.getByText("デバッグ非表示")).toBeTruthy();
+  });
+
+  it("hides the key button when writeProtected is false", () => {
+    render(<Header {...baseProps} writeProtected={false} />);
+    expect(screen.queryByText(/編集キー/)).toBeNull();
+  });
+
+  it("shows unlocked key button when writeProtected=true and keySet=true", () => {
+    render(<Header {...baseProps} writeProtected={true} keySet={true} />);
+    const btn = screen.getByText("🔓 編集キー");
+    expect(btn).toBeTruthy();
+    expect((btn as HTMLElement).className).not.toContain("warn");
+  });
+
+  it("shows locked key button with warn class when writeProtected=true and keySet=false", () => {
+    render(<Header {...baseProps} writeProtected={true} keySet={false} />);
+    const btn = screen.getByText("🔒 編集キー必須");
+    expect(btn).toBeTruthy();
+    expect((btn as HTMLElement).className).toContain("warn");
+  });
+
+  it("calls onAddNote when テキスト追加 is clicked", () => {
+    const onAddNote = vi.fn();
+    render(<Header {...baseProps} onAddNote={onAddNote} />);
+    fireEvent.click(screen.getByText("テキスト追加"));
+    expect(onAddNote).toHaveBeenCalledOnce();
+  });
+
+  it("calls onCopyLink when 共有URLをコピー is clicked", () => {
+    const onCopyLink = vi.fn();
+    render(<Header {...baseProps} onCopyLink={onCopyLink} />);
+    fireEvent.click(screen.getByText("共有URLをコピー"));
+    expect(onCopyLink).toHaveBeenCalledOnce();
+  });
+
+  it("calls onToggleDebug when the debug button is clicked", () => {
+    const onToggleDebug = vi.fn();
+    render(<Header {...baseProps} onToggleDebug={onToggleDebug} />);
+    fireEvent.click(screen.getByText("デバッグ表示"));
+    expect(onToggleDebug).toHaveBeenCalledOnce();
+  });
+
+  it("calls onEditKey when the key button is clicked", () => {
+    const onEditKey = vi.fn();
+    render(<Header {...baseProps} writeProtected={true} keySet={true} onEditKey={onEditKey} />);
+    fireEvent.click(screen.getByText("🔓 編集キー"));
+    expect(onEditKey).toHaveBeenCalledOnce();
+  });
+});
