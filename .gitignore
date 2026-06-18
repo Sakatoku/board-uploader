@@ -6,6 +6,8 @@ dist/
 *.log
 vlogs.txt
 runtime/
+# local upload test fixtures (generated, not versioned)
+samples/
 
 .vercel
 .env*
