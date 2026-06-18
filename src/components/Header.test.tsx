@@ -26,13 +26,19 @@ describe("Header", () => {
     expect(screen.getByText("共有URLをコピー")).toBeTruthy();
   });
 
-  it("shows 'デバッグ表示' when debugOpen is false", () => {
-    render(<Header {...baseProps} debugOpen={false} />);
+  it("hides the debug button when showDebug is false (default)", () => {
+    render(<Header {...baseProps} />);
+    expect(screen.queryByText("デバッグ表示")).toBeNull();
+    expect(screen.queryByText("デバッグ非表示")).toBeNull();
+  });
+
+  it("shows 'デバッグ表示' when showDebug=true and debugOpen is false", () => {
+    render(<Header {...baseProps} showDebug={true} debugOpen={false} />);
     expect(screen.getByText("デバッグ表示")).toBeTruthy();
   });
 
-  it("shows 'デバッグ非表示' when debugOpen is true", () => {
-    render(<Header {...baseProps} debugOpen={true} />);
+  it("shows 'デバッグ非表示' when showDebug=true and debugOpen is true", () => {
+    render(<Header {...baseProps} showDebug={true} debugOpen={true} />);
     expect(screen.getByText("デバッグ非表示")).toBeTruthy();
   });
 
@@ -71,7 +77,7 @@ describe("Header", () => {
 
   it("calls onToggleDebug when the debug button is clicked", () => {
     const onToggleDebug = vi.fn();
-    render(<Header {...baseProps} onToggleDebug={onToggleDebug} />);
+    render(<Header {...baseProps} showDebug={true} onToggleDebug={onToggleDebug} />);
     fireEvent.click(screen.getByText("デバッグ表示"));
     expect(onToggleDebug).toHaveBeenCalledOnce();
   });

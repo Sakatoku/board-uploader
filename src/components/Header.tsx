@@ -3,8 +3,10 @@ import { useRef } from "react";
 interface Props {
   onFiles: (files: File[]) => void;
   onAddNote: () => void;
-  onToggleDebug: () => void;
-  debugOpen: boolean;
+  onToggleDebug?: () => void;
+  debugOpen?: boolean;
+  /** Show the debug toggle button (controlled by VITE_DEBUG_UI build flag). */
+  showDebug?: boolean;
   onCopyLink: () => void;
   /** Whether the server enforces a write key (shows the key control). */
   writeProtected: boolean;
@@ -17,7 +19,8 @@ export function Header({
   onFiles,
   onAddNote,
   onToggleDebug,
-  debugOpen,
+  debugOpen = false,
+  showDebug = false,
   onCopyLink,
   writeProtected,
   keySet,
@@ -56,9 +59,11 @@ export function Header({
         <button className="button secondary" type="button" onClick={onAddNote}>
           テキスト追加
         </button>
-        <button className="button secondary" type="button" onClick={onToggleDebug}>
-          {debugOpen ? "デバッグ非表示" : "デバッグ表示"}
-        </button>
+        {showDebug && (
+          <button className="button secondary" type="button" onClick={onToggleDebug}>
+            {debugOpen ? "デバッグ非表示" : "デバッグ表示"}
+          </button>
+        )}
         <button className="button primary" type="button" onClick={onCopyLink}>
           共有URLをコピー
         </button>

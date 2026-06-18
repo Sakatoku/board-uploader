@@ -7,6 +7,7 @@ import { Header } from "./components/Header";
 import { BoardCanvas } from "./components/BoardCanvas";
 import { DebugPanel } from "./components/DebugPanel";
 import { ApiError, getConfig } from "./lib/api";
+import { DEBUG_UI } from "./lib/flags";
 import { getWriteKey, hasWriteKey, setWriteKey } from "./lib/auth";
 import { log } from "./lib/log";
 
@@ -181,6 +182,7 @@ export default function App() {
       <Header
         onFiles={handleFiles}
         onAddNote={handleAddNote}
+        showDebug={DEBUG_UI}
         onToggleDebug={() => setDebugOpen((open) => !open)}
         debugOpen={debugOpen}
         onCopyLink={handleCopyLink}
@@ -201,7 +203,7 @@ export default function App() {
         onDragStart={startDrag}
         onDropFiles={uploadAt}
       />
-      <DebugPanel open={debugOpen} onClose={() => setDebugOpen(false)} onCopyStatus={setStatus} />
+      {DEBUG_UI && <DebugPanel open={debugOpen} onClose={() => setDebugOpen(false)} onCopyStatus={setStatus} />}
     </div>
   );
 }
