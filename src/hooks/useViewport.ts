@@ -110,6 +110,9 @@ export function useViewport({ canvasRef, viewRef }: UseViewportArgs): UseViewpor
 
   const onBackgroundPointerDown = useCallback(
     (event: ReactPointerEvent) => {
+      // Don't intercept clicks on buttons, links, or other interactive elements inside the canvas.
+      if ((event.target as HTMLElement).closest("a, button, input, select, textarea")) return;
+
       const canvas = canvasRef.current;
       if (!canvas) return;
       pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
