@@ -17,7 +17,7 @@
  */
 
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { Readable } from "node:stream";
 import { put, del, list } from "@vercel/blob";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
@@ -26,12 +26,15 @@ import type {
   BlobReadResult,
   BlobStore,
   ClientUploadStore,
+  GcStore,
   HealthResult,
   MetadataStore,
+  PendingMarkerInfo,
   StorageProvider,
 } from "./provider";
 import type { Board, BlobRef } from "../domain/types";
 import { logger, timed } from "../logger";
+import { runOrphanGc } from "../gc/orphan";
 
 export interface VercelBlobProviderConfig {
   /** Falls back to the SDK's BLOB_READ_WRITE_TOKEN env var when omitted. */
@@ -174,6 +177,56 @@ export class VercelBlobStorageProvider implements StorageProvider {
     },
   };
 
+  readonly gc: GcStore = {
+    putPendingMarker: async ({ blobUrl, boardId }) => {
+      const hash = createHash("sha256").update(blobUrl).digest("hex").slice(0, 16);
+      const pathname = `gc-pending/${hash}.json`;
+      const body = JSON.stringify({ blobUrl, boardId, createdAt: new Date().toISOString() });
+      await put(
+        pathname,
+        body,
+        this.opts({
+          access: "public" as const,
+          contentType: "application/json",
+          addRandomSuffix: false,
+          allowOverwrite: true,
+        }),
+      );
+    },
+
+    deletePendingMarker: async (blobUrl) => {
+      const hash = createHash("sha256").update(blobUrl).digest("hex").slice(0, 16);
+      const pathname = `gc-pending/${hash}.json`;
+      const result = await list(this.opts({ prefix: pathname, limit: 1 }));
+      const match = result.blobs.find((b) => b.pathname === pathname);
+      if (match) {
+        await del(match.url, this.opts({}));
+      }
+    },
+
+    listPendingMarkers: async () => {
+      const result = await list(this.opts({ prefix: "gc-pending/", limit: 1000 }));
+      const markers: PendingMarkerInfo[] = [];
+      for (const blob of result.blobs) {
+        try {
+          const bytes = await fetchBytes(blob.url, { cache: "no-store" });
+          const parsed = JSON.parse(bytes.toString("utf8")) as {
+            blobUrl: string;
+            boardId: string;
+          };
+          markers.push({
+            blobUrl: parsed.blobUrl,
+            boardId: parsed.boardId,
+            uploadedAt: new Date(blob.uploadedAt),
+          });
+        } catch (error) {
+          logger.warn("gc.marker.parse_fail", { url: blob.url, error });
+        }
+      }
+      return markers;
+    },
+  };
+
   readonly clientUpload: ClientUploadStore = {
     maxBytes: MAX_DIRECT_UPLOAD_BYTES,
     handleTokenRequest: async ({ body, request, boardId, authorizeClientPayload }) => {
@@ -200,6 +253,17 @@ export class VercelBlobStorageProvider implements StorageProvider {
         },
         onUploadCompleted: async ({ blob }) => {
           logger.info("blob.client_upload.completed", { boardId, url: blob.url });
+
+          try {
+            await this.gc.putPendingMarker({ blobUrl: blob.url, boardId });
+          } catch (error) {
+            logger.warn("gc.marker.write_fail", { blobUrl: blob.url, boardId, error });
+          }
+
+          // Fire-and-forget: grace-period markers won't be touched anyway.
+          runOrphanGc(this).catch((error) => {
+            logger.warn("gc.silent_run.fail", { error });
+          });
         },
       });
     },

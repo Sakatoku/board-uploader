@@ -25,6 +25,7 @@ import {
   updateItemPosition,
   type UploadedFile,
 } from "./handlers/boards";
+import { gcOrphanBlobs } from "./handlers/gc";
 import { logger } from "./logger";
 
 // Memory storage: multer hands us Buffers we forward straight to the BlobStore.
@@ -141,6 +142,11 @@ export function createApp(): Express {
       res.status(201).json(result);
     }),
   );
+
+  app.post("/api/admin/gc", requireWriteKey, wrap(async (_req, res) => {
+    const result = await gcOrphanBlobs(getStorage());
+    res.json(result);
+  }));
 
   app.patch("/api/boards/:boardId/items/:itemId", requireWriteKey, wrap(async (req, res) => {
     const result = await updateItemPosition(

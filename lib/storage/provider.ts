@@ -83,12 +83,30 @@ export interface ClientUploadStore {
   }): Promise<unknown>;
 }
 
+export interface PendingMarkerInfo {
+  blobUrl: string;
+  boardId: string;
+  /** Derived from the blob object's own uploadedAt metadata. */
+  uploadedAt: Date;
+}
+
+export interface GcStore {
+  /** Write a marker for a direct-uploaded blob that has not yet been attached. */
+  putPendingMarker(marker: { blobUrl: string; boardId: string }): Promise<void>;
+  /** Remove the marker after a successful attach, or after GC reclaims the blob. */
+  deletePendingMarker(blobUrl: string): Promise<void>;
+  /** List all pending markers (uploadedAt from blob metadata). */
+  listPendingMarkers(): Promise<PendingMarkerInfo[]>;
+}
+
 export interface StorageProvider {
   readonly name: string;
   readonly metadata: MetadataStore;
   readonly blobs: BlobStore;
   /** Present only when the backend supports browser-direct uploads. */
   readonly clientUpload?: ClientUploadStore;
+  /** Present only when the backend supports orphan-blob GC. */
+  readonly gc?: GcStore;
   /** Cheap connectivity probe used by /api/health and at boot. */
   health(): Promise<HealthResult>;
 }

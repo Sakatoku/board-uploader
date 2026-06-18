@@ -181,6 +181,21 @@ export async function attachFiles(
     logger.info("file.attach", { boardId, itemId: item.id, mimeType: item.mimeType, size: item.size });
   }
 
+  // Best-effort: clean up GC markers for the blobs we just attached.
+  // If onUploadCompleted hasn't fired yet, deletePendingMarker is a no-op.
+  if (storage.gc) {
+    const gc = storage.gc;
+    void Promise.allSettled(
+      newItems.map((item) => gc.deletePendingMarker(item.blob.key)),
+    ).then((results) => {
+      for (const r of results) {
+        if (r.status === "rejected") {
+          logger.warn("gc.marker.delete_fail", { error: r.reason });
+        }
+      }
+    });
+  }
+
   return { items: newItems, board: serializeBoard(board) };
 }
 
