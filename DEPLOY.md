@@ -78,6 +78,28 @@ curl https://<your-app>.vercel.app/api/health
 Expect `{"ok":true,"provider":"vercel-blob"}`. Then open the app, create a
 board, add a note, and upload a file.
 
+## Write protection (stage-1 auth)
+
+Reads stay open (link-share); **writes** (create board, add note/file, move,
+direct-upload token, attach) can be gated behind a single shared key.
+
+- **Disabled by default (fail-open).** With `WRITE_API_KEY` unset, all writes are
+  allowed — local dev and existing deploys are unaffected.
+- **To enable**, set the env var (any non-empty secret):
+
+  ```sh
+  vercel env add WRITE_API_KEY production   # value: your secret
+  ```
+
+  Redeploy. `GET /api/config` then reports `"writeProtected": true`.
+- **Using it**: open the app, click **編集キー** in the header, paste the same
+  secret. It is stored in the browser (`localStorage`) and sent as the
+  `X-API-Key` header on writes (and as the client payload for direct uploads).
+  Without a valid key, writes return `401`.
+
+> Stage 2 (JWT HttpOnly cookie + QR one-time token) builds on this — see
+> [ROADMAP.md](./ROADMAP.md).
+
 ## Switching storage backends
 
 `STORAGE_DRIVER` selects the provider (`vercel-blob`, `pcloud`, `mock`). Adding
