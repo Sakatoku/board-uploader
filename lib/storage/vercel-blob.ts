@@ -176,7 +176,7 @@ export class VercelBlobStorageProvider implements StorageProvider {
 
   readonly clientUpload: ClientUploadStore = {
     maxBytes: MAX_DIRECT_UPLOAD_BYTES,
-    handleTokenRequest: async ({ body, request, boardId }) => {
+    handleTokenRequest: async ({ body, request, boardId, authorizeClientPayload }) => {
       // The @vercel/blob client SDK drives a two-step handshake: it asks us for
       // a scoped token, uploads straight to Blob, then (on Vercel) pings us back
       // with the result. We don't rely on the completion ping to attach the
@@ -185,11 +185,19 @@ export class VercelBlobStorageProvider implements StorageProvider {
         token: this.token,
         body: body as HandleUploadBody,
         request: request as Parameters<typeof handleUpload>[0]["request"],
-        onBeforeGenerateToken: async () => ({
-          addRandomSuffix: true,
-          maximumSizeInBytes: MAX_DIRECT_UPLOAD_BYTES,
-          tokenPayload: JSON.stringify({ boardId }),
-        }),
+        onBeforeGenerateToken: async (_pathname, clientPayload) => {
+          // The write key rides in clientPayload (the SDK owns this request, so
+          // we can't gate it with the X-API-Key header middleware).
+          if (authorizeClientPayload && !authorizeClientPayload(clientPayload)) {
+            logger.warn("auth.upload_token.denied", { boardId });
+            throw new Error("A valid write key is required.");
+          }
+          return {
+            addRandomSuffix: true,
+            maximumSizeInBytes: MAX_DIRECT_UPLOAD_BYTES,
+            tokenPayload: JSON.stringify({ boardId }),
+          };
+        },
         onUploadCompleted: async ({ blob }) => {
           logger.info("blob.client_upload.completed", { boardId, url: blob.url });
         },

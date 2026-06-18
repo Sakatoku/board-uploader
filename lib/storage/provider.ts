@@ -73,6 +73,13 @@ export interface ClientUploadStore {
     body: unknown;
     request: unknown;
     boardId: string;
+    /**
+     * Authorize the upload before a token is minted, given the client-supplied
+     * payload (used to carry the write key for direct uploads, since the SDK
+     * drives the token request and we can't set headers on it). Returning false
+     * denies the token. Omitted ⇒ always allowed.
+     */
+    authorizeClientPayload?: (clientPayload: string | null) => boolean;
   }): Promise<unknown>;
 }
 

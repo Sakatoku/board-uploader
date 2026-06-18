@@ -14,6 +14,7 @@ import express, { type Express, type NextFunction, type Request, type Response }
 import multer from "multer";
 import { getStorage } from "./storage";
 import { HttpError } from "./http/errors";
+import { isWriteAuthorized, requireWriteKey, writeProtectionEnabled } from "./http/auth";
 import {
   addFiles,
   addNote,
@@ -77,6 +78,7 @@ export function createApp(): Express {
     res.json({
       uploadStrategy: direct ? "direct" : "proxy",
       maxUploadBytes: direct ? direct.maxBytes : null,
+      writeProtected: writeProtectionEnabled(),
     });
   });
 
@@ -92,19 +94,22 @@ export function createApp(): Express {
       body: req.body,
       request: req,
       boardId: param(req, "boardId"),
+      // The SDK owns this request, so the write key rides in clientPayload
+      // rather than the X-API-Key header.
+      authorizeClientPayload: (clientPayload) => isWriteAuthorized(clientPayload),
     });
     res.json(result);
   }));
 
   // Record items for files the browser uploaded directly (read side of the
   // direct-upload path).
-  app.post("/api/boards/:boardId/files/attach", wrap(async (req, res) => {
+  app.post("/api/boards/:boardId/files/attach", requireWriteKey, wrap(async (req, res) => {
     const files = Array.isArray(req.body?.files) ? req.body.files : [];
     const result = await attachFiles(getStorage(), param(req, "boardId"), files);
     res.status(201).json(result);
   }));
 
-  app.post("/api/boards", wrap(async (req, res) => {
+  app.post("/api/boards", requireWriteKey, wrap(async (req, res) => {
     const result = await createBoard(getStorage(), { title: req.body?.title });
     res.status(201).json(result);
   }));
@@ -113,7 +118,7 @@ export function createApp(): Express {
     res.json(await getBoard(getStorage(), param(req, "boardId")));
   }));
 
-  app.post("/api/boards/:boardId/notes", wrap(async (req, res) => {
+  app.post("/api/boards/:boardId/notes", requireWriteKey, wrap(async (req, res) => {
     const result = await addNote(getStorage(), param(req, "boardId"), {
       text: req.body?.text,
       x: req.body?.x,
@@ -124,6 +129,7 @@ export function createApp(): Express {
 
   app.post(
     "/api/boards/:boardId/files",
+    requireWriteKey,
     upload.array("files", 20),
     wrap(async (req, res) => {
       const result = await addFiles(
@@ -136,7 +142,7 @@ export function createApp(): Express {
     }),
   );
 
-  app.patch("/api/boards/:boardId/items/:itemId", wrap(async (req, res) => {
+  app.patch("/api/boards/:boardId/items/:itemId", requireWriteKey, wrap(async (req, res) => {
     const result = await updateItemPosition(
       getStorage(),
       param(req, "boardId"),

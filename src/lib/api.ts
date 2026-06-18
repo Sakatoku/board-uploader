@@ -1,5 +1,6 @@
 import { upload } from "@vercel/blob/client";
 import type { Board, Point } from "../types";
+import { getWriteKey } from "./auth";
 import { log } from "./log";
 
 /** Error carrying the HTTP status so callers can treat 404 as transient. */
@@ -20,9 +21,12 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 
   let response: Response;
   try {
+    const writeKey = getWriteKey();
     response = await fetch(path, {
       headers: {
         ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+        // Harmless on reads; required by the write gate when one is configured.
+        ...(writeKey ? { "X-API-Key": writeKey } : {}),
         ...(options.headers || {}),
       },
       ...options,
@@ -76,6 +80,7 @@ export async function createNote(boardId: string, text: string, point: Point): P
 interface AppConfig {
   uploadStrategy: "direct" | "proxy";
   maxUploadBytes: number | null;
+  writeProtected: boolean;
 }
 
 let configPromise: Promise<AppConfig> | null = null;
@@ -86,7 +91,7 @@ export function getConfig(): Promise<AppConfig> {
     // On failure, fall back to the always-available proxy path.
     configPromise = null;
     log("config fetch failed (assuming proxy)", String(error), "warn");
-    return { uploadStrategy: "proxy", maxUploadBytes: null };
+    return { uploadStrategy: "proxy", maxUploadBytes: null, writeProtected: false };
   });
   return configPromise;
 }
@@ -143,6 +148,9 @@ async function uploadFilesDirect(
         access: "public",
         contentType: file.type || undefined,
         handleUploadUrl: `/api/boards/${boardId}/upload-token`,
+        // The SDK owns the token request, so the write key travels in the
+        // payload (validated server-side in onBeforeGenerateToken).
+        clientPayload: getWriteKey() || undefined,
       });
       const pos = placement(point, index);
       return {

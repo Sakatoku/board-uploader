@@ -6,15 +6,39 @@ interface Props {
   onToggleDebug: () => void;
   debugOpen: boolean;
   onCopyLink: () => void;
+  /** Whether the server enforces a write key (shows the key control). */
+  writeProtected: boolean;
+  /** Whether a write key is currently stored locally. */
+  keySet: boolean;
+  onEditKey: () => void;
 }
 
-export function Header({ onFiles, onAddNote, onToggleDebug, debugOpen, onCopyLink }: Props) {
+export function Header({
+  onFiles,
+  onAddNote,
+  onToggleDebug,
+  debugOpen,
+  onCopyLink,
+  writeProtected,
+  keySet,
+  onEditKey,
+}: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <header className="topbar">
       <p className="brand">BOARD UPLOADER</p>
       <div className="topbar-actions">
+        {writeProtected && (
+          <button
+            className={`button secondary${keySet ? "" : " warn"}`}
+            type="button"
+            onClick={onEditKey}
+            title="書き込みに必要な編集キーを設定します"
+          >
+            {keySet ? "🔓 編集キー" : "🔒 編集キー必須"}
+          </button>
+        )}
         <label className="button secondary">
           ファイル追加
           <input

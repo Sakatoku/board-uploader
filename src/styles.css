@@ -91,6 +91,12 @@ h2 {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.button.secondary.warn {
+  color: #ffd9d9;
+  background: rgba(255, 138, 138, 0.16);
+  border: 1px solid rgba(255, 138, 138, 0.5);
+}
+
 .board-canvas {
   position: relative;
   flex: 1 1 auto;
