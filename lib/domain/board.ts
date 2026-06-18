@@ -70,9 +70,16 @@ export function makeFileItem(input: {
   y: number;
 }): FileItem {
   const ts = nowIso();
+  const mime = input.mimeType;
+  let type: FileItem["type"];
+  if (mime.startsWith("image/")) type = "image";
+  else if (mime.startsWith("video/")) type = "video";
+  else if (mime.startsWith("audio/")) type = "audio";
+  else if (mime === "application/pdf") type = "pdf";
+  else type = "file";
   return {
     id: makeId(),
-    type: input.mimeType.startsWith("image/") ? "image" : "file",
+    type,
     title: input.fileName,
     fileName: input.fileName,
     mimeType: input.mimeType,

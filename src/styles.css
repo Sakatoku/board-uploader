@@ -309,6 +309,41 @@ h2 {
   font-size: 14px;
 }
 
+.video-frame {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+  margin-bottom: 10px;
+}
+
+.video-frame video {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+}
+
+.audio-frame {
+  margin-bottom: 10px;
+}
+
+.audio-frame audio {
+  display: block;
+  width: 100%;
+}
+
+.pdf-frame {
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.pdf-frame iframe {
+  display: block;
+  width: 100%;
+  height: 300px;
+  border: none;
+}
+
 .card-actions {
   display: flex;
   gap: 10px;

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   makeBoard,
+  makeFileItem,
   normalizeTitle,
   toFiniteNumber,
   serializeBoard,
@@ -59,6 +60,40 @@ describe("serializeBoard", () => {
     ];
     const ordered = serializeBoard(board).items.map((i) => i.id);
     expect(ordered).toEqual(["a", "b"]);
+  });
+});
+
+describe("makeFileItem", () => {
+  const base = {
+    fileName: "test",
+    size: 100,
+    blob: { provider: "mock", key: "k" },
+    x: 0,
+    y: 0,
+  };
+
+  it("image/* → image", () => {
+    expect(makeFileItem({ ...base, mimeType: "image/png" }).type).toBe("image");
+  });
+
+  it("video/* → video", () => {
+    expect(makeFileItem({ ...base, mimeType: "video/mp4" }).type).toBe("video");
+  });
+
+  it("audio/mpeg → audio", () => {
+    expect(makeFileItem({ ...base, mimeType: "audio/mpeg" }).type).toBe("audio");
+  });
+
+  it("audio/mp4 (m4a) → audio", () => {
+    expect(makeFileItem({ ...base, mimeType: "audio/mp4" }).type).toBe("audio");
+  });
+
+  it("application/pdf → pdf", () => {
+    expect(makeFileItem({ ...base, mimeType: "application/pdf" }).type).toBe("pdf");
+  });
+
+  it("text/plain → file (fallback)", () => {
+    expect(makeFileItem({ ...base, mimeType: "text/plain" }).type).toBe("file");
   });
 });
 

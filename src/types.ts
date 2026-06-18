@@ -12,7 +12,7 @@ export type { Board, BoardItem, NoteItem, FileItem, ItemType };
 
 /** Local guard (re-implemented client-side to avoid bundling lib/ runtime). */
 export function isFileItem(item: BoardItem): item is FileItem {
-  return item.type === "image" || item.type === "file";
+  return item.type !== "note";
 }
 
 /** A point in board (world) coordinates. */

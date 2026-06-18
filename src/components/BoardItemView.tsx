@@ -13,6 +13,9 @@ function formatBytes(size: number): string {
 function badgeText(item: BoardItem): string {
   if (item.type === "note") return "TEXT";
   if (item.type === "image") return "IMAGE";
+  if (item.type === "video") return "VIDEO";
+  if (item.type === "audio") return "AUDIO";
+  if (item.type === "pdf") return "PDF";
   return "FILE";
 }
 
@@ -79,6 +82,24 @@ export function BoardItemView({ boardId, item, onDragStart }: Props) {
                 <RetryingImage boardId={boardId} itemId={item.id} alt={item.title} />
               </div>
             )}
+            {item.type === "video" && (
+              <div className="video-frame">
+                <video controls src={contentUrl(boardId, item.id)} />
+              </div>
+            )}
+            {item.type === "audio" && (
+              <div className="audio-frame">
+                <audio controls src={contentUrl(boardId, item.id)} />
+              </div>
+            )}
+            {item.type === "pdf" && (
+              <div className="pdf-frame">
+                <iframe
+                  src={contentUrl(boardId, item.id)}
+                  title={item.fileName}
+                />
+              </div>
+            )}
             <div className="file-meta">
               <div className="file-name">{item.fileName}</div>
               <div className="file-detail">
@@ -86,7 +107,7 @@ export function BoardItemView({ boardId, item, onDragStart }: Props) {
               </div>
             </div>
             <div className="card-actions">
-              {item.type === "image" && (
+              {(item.type === "image" || item.type === "video" || item.type === "pdf") && (
                 <a
                   className="link-button secondary"
                   href={contentUrl(boardId, item.id)}

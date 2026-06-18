@@ -62,6 +62,122 @@ function makeFile(overrides: Partial<FileItem> = {}): FileItem {
   };
 }
 
+function makeVideo(overrides: Partial<FileItem> = {}): FileItem {
+  return {
+    id: "video-id",
+    type: "video",
+    title: "Movie",
+    fileName: "movie.mp4",
+    mimeType: "video/mp4",
+    size: 10 * 1024 * 1024,
+    x: 0, y: 0,
+    blob: { provider: "mock", key: "k" },
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function makeAudio(overrides: Partial<FileItem> = {}): FileItem {
+  return {
+    id: "audio-id",
+    type: "audio",
+    title: "Track",
+    fileName: "track.mp3",
+    mimeType: "audio/mpeg",
+    size: 3 * 1024 * 1024,
+    x: 0, y: 0,
+    blob: { provider: "mock", key: "k" },
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function makePdf(overrides: Partial<FileItem> = {}): FileItem {
+  return {
+    id: "pdf-id",
+    type: "pdf",
+    title: "Document",
+    fileName: "doc.pdf",
+    mimeType: "application/pdf",
+    size: 512 * 1024,
+    x: 0, y: 0,
+    blob: { provider: "mock", key: "k" },
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
+describe("video item", () => {
+  it("shows VIDEO badge", () => {
+    render(<BoardItemView boardId={BOARD_ID} item={makeVideo()} onDragStart={noop} />);
+    expect(screen.getByText("VIDEO")).toBeTruthy();
+  });
+
+  it("renders a video element", () => {
+    const { container } = render(
+      <BoardItemView boardId={BOARD_ID} item={makeVideo({ id: "video-id" })} onDragStart={noop} />,
+    );
+    const video = container.querySelector("video");
+    expect(video).toBeTruthy();
+    expect(video?.src).toContain("/api/boards/board-1/items/video-id/content");
+  });
+
+  it("renders the 開く link", () => {
+    render(<BoardItemView boardId={BOARD_ID} item={makeVideo({ id: "video-id" })} onDragStart={noop} />);
+    expect(screen.getByText("開く")).toBeTruthy();
+  });
+
+  it("renders the download link", () => {
+    render(<BoardItemView boardId={BOARD_ID} item={makeVideo({ id: "video-id" })} onDragStart={noop} />);
+    expect(screen.getByText("ダウンロード")).toBeTruthy();
+  });
+});
+
+describe("audio item", () => {
+  it("shows AUDIO badge", () => {
+    render(<BoardItemView boardId={BOARD_ID} item={makeAudio()} onDragStart={noop} />);
+    expect(screen.getByText("AUDIO")).toBeTruthy();
+  });
+
+  it("renders an audio element", () => {
+    const { container } = render(
+      <BoardItemView boardId={BOARD_ID} item={makeAudio({ id: "audio-id" })} onDragStart={noop} />,
+    );
+    const audio = container.querySelector("audio");
+    expect(audio).toBeTruthy();
+    expect(audio?.src).toContain("/api/boards/board-1/items/audio-id/content");
+  });
+
+  it("does not render the 開く link", () => {
+    render(<BoardItemView boardId={BOARD_ID} item={makeAudio()} onDragStart={noop} />);
+    expect(screen.queryByText("開く")).toBeNull();
+  });
+});
+
+describe("pdf item", () => {
+  it("shows PDF badge", () => {
+    render(<BoardItemView boardId={BOARD_ID} item={makePdf()} onDragStart={noop} />);
+    expect(screen.getByText("PDF")).toBeTruthy();
+  });
+
+  it("renders an iframe", () => {
+    const { container } = render(
+      <BoardItemView boardId={BOARD_ID} item={makePdf({ id: "pdf-id" })} onDragStart={noop} />,
+    );
+    const iframe = container.querySelector("iframe");
+    expect(iframe).toBeTruthy();
+    expect(iframe?.src).toContain("/api/boards/board-1/items/pdf-id/content");
+  });
+
+  it("renders the 開く link", () => {
+    render(<BoardItemView boardId={BOARD_ID} item={makePdf({ id: "pdf-id" })} onDragStart={noop} />);
+    expect(screen.getByText("開く")).toBeTruthy();
+  });
+});
+
 describe("BoardItemView", () => {
   describe("note item", () => {
     it("renders the note text", () => {

@@ -7,7 +7,7 @@
  * knows how to resolve.
  */
 
-export type ItemType = "note" | "image" | "file";
+export type ItemType = "note" | "image" | "video" | "audio" | "pdf" | "file";
 
 /** Opaque pointer to a stored binary. `provider` lets us migrate stores later. */
 export interface BlobRef {
@@ -32,7 +32,7 @@ export interface NoteItem extends BaseItem {
 }
 
 export interface FileItem extends BaseItem {
-  type: "image" | "file";
+  type: "image" | "video" | "audio" | "pdf" | "file";
   fileName: string;
   mimeType: string;
   size: number;
@@ -51,5 +51,5 @@ export interface Board {
 }
 
 export function isFileItem(item: BoardItem): item is FileItem {
-  return item.type === "image" || item.type === "file";
+  return item.type !== "note";
 }
