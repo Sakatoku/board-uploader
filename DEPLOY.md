@@ -6,6 +6,9 @@ Board Uploader is a Vite + React frontend plus an Express serverless API:
   as static assets (`buildCommand` / `outputDirectory` in `vercel.json`).
 - `api/index.ts` is the serverless function handling every `/api/*` route.
 - Storage is pluggable via `STORAGE_DRIVER`; production uses **Vercel Blob**.
+- CI (`.github/workflows/ci.yml`) typechecks, tests and builds on every
+  push/PR. It runs **in parallel** with Vercel's deploy (a soft gate today, not
+  a hard block) — see ROADMAP for the planned PR + preview-deploy flow.
 
 > **Do not add `"type":"module"` to `package.json`.** The API function is
 > CommonJS; ESM breaks it on Vercel (`ERR_MODULE_NOT_FOUND`). The React source

@@ -27,7 +27,8 @@
 | Frontend | **Vite + React + TypeScript**（`src/`、ビルド出力 `dist/`） |
 | Backend | Express 5 を Vercel Serverless Function 化（`api/index.ts`） |
 | Storage | Vercel Blob（バイナリ本体＋ボード JSON）。`STORAGE_DRIVER` で差し替え可 |
-| Test | Vitest |
+| Test | Vitest（`lib/` のドメイン/ハンドラ ＋ `src/` の座標・ズーム計算） |
+| CI | GitHub Actions（push(main)/PR で typecheck×2 ＋ test ＋ build。public repo ゆえ無料） |
 | 言語/ビルド | TypeScript。**API/lib は CommonJS 固定**（下記注意参照） |
 
 > **重要（CJS/ESM の地雷）:** この repo の `package.json` に `"type":"module"` を**付けない**こと。
@@ -52,10 +53,14 @@ npm run dev:web      # ターミナル2: フロント（vite, :5173）→ ブラ
 ```sh
 npm run build         # vite build → dist/
 npm run preview       # ビルド済み dist/ をプレビュー
-npm test              # Vitest（lib のロジック）
+npm test              # Vitest（lib＋src のロジック）
 npm run typecheck     # API/lib の型（tsconfig.json）
 npm run typecheck:web # フロントの型（tsconfig.app.json）
 ```
+
+CI（`.github/workflows/ci.yml`）が push(main)/PR で上記の `typecheck` × 2・`test`・`build` を
+実行します。`main` への push は Vercel デプロイと**並列**で走ります（現状は CI 失敗でもデプロイは
+止まらないソフトゲート）。
 
 ストレージは API 側で選択。ローカルの `dev:api` は既定で `STORAGE_DRIVER=mock`（インメモリ・非永続）。
 本番は `vercel-blob`。
@@ -71,7 +76,7 @@ src/
   App.tsx          状態統括 + Header/BoardCanvas/DebugPanel 配置
   styles.css       グローバル CSS
   types.ts         lib/domain/types の型を再利用 + クライアント専用型
-  lib/             api.ts（fetch+リトライ）/ log.ts（デバッグログ）/ geometry.ts（client→world座標変換）
+  lib/             api.ts（fetch+リトライ+直/proxyアップロード切替）/ log.ts（デバッグログ）/ geometry.ts（client→world座標変換・ズーム計算）
   hooks/           useBoard（状態・操作）/ useDrag（ポインタドラッグ）/ useViewport（パン・ズーム）
   components/      Header / BoardCanvas（無限キャンバス+ズームUI） / BoardItemView / DebugPanel
 public/            Vite の静的パススルー（現状は空）
@@ -84,6 +89,7 @@ lib/
   http/            エラー型など HTTP アダプタ
   logger.ts        構造化ログ（1行1 JSON）
 scripts/check-storage.ts   実ストレージの疎通チェック（使い捨てボードで CRUD）
+.github/workflows/ci.yml   CI（typecheck×2 + test + build）
 ```
 
 設計の肝: ハンドラは `StorageProvider` と「パース済み入力」を受け取り、プレーンな
