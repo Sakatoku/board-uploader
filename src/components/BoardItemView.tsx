@@ -49,9 +49,10 @@ interface Props {
   boardId: string;
   item: BoardItem;
   onDragStart: (item: BoardItem, element: HTMLElement, header: HTMLElement, event: ReactPointerEvent) => void;
+  onDelete: (itemId: string) => void;
 }
 
-export function BoardItemView({ boardId, item, onDragStart }: Props) {
+export function BoardItemView({ boardId, item, onDragStart, onDelete }: Props) {
   const articleRef = useRef<HTMLElement>(null);
 
   const handlePointerDown = (event: ReactPointerEvent) => {
@@ -60,6 +61,11 @@ export function BoardItemView({ boardId, item, onDragStart }: Props) {
       event.stopPropagation();
       onDragStart(item, articleRef.current, event.currentTarget as HTMLElement, event);
     }
+  };
+
+  const handleDelete = () => {
+    if (!window.confirm(`「${item.title}」を削除しますか？`)) return;
+    onDelete(item.id);
   };
 
   return (
@@ -71,6 +77,15 @@ export function BoardItemView({ boardId, item, onDragStart }: Props) {
       <header className="item-header" onPointerDown={handlePointerDown}>
         <span className="item-badge">{badgeText(item)}</span>
         <span className="item-title">{item.title}</span>
+        <button
+          type="button"
+          className="item-delete"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={handleDelete}
+          aria-label="削除"
+        >
+          ×
+        </button>
       </header>
       <div className="item-body">
         {item.type === "note" && !isFileItem(item) ? (

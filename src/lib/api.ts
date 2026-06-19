@@ -171,6 +171,14 @@ async function uploadFilesDirect(
   return payload.board;
 }
 
+export async function deleteItem(boardId: string, itemId: string): Promise<Board> {
+  const payload = await apiFetch<{ board: Board }>(
+    `/api/boards/${boardId}/items/${itemId}`,
+    { method: "DELETE" },
+  );
+  return payload.board;
+}
+
 /**
  * Persist a position. The backing store (Vercel Blob) is eventually
  * consistent, so a freshly-added item may not be readable for a few seconds

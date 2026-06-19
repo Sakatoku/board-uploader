@@ -20,6 +20,7 @@ import {
   addNote,
   attachFiles,
   createBoard,
+  deleteItem,
   getBoard,
   resolveFile,
   updateItemPosition,
@@ -154,6 +155,15 @@ export function createApp(): Express {
       param(req, "boardId"),
       param(req, "itemId"),
       { x: req.body?.x, y: req.body?.y },
+    );
+    res.json(result);
+  }));
+
+  app.delete("/api/boards/:boardId/items/:itemId", requireWriteKey, wrap(async (req, res) => {
+    const result = await deleteItem(
+      getStorage(),
+      param(req, "boardId"),
+      param(req, "itemId"),
     );
     res.json(result);
   }));

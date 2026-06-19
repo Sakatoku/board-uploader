@@ -27,6 +27,7 @@ export interface UseBoard {
   addFiles: (files: File[], point: Point) => Promise<void>;
   /** Optimistically move an item locally, then persist (retrying on 404). */
   moveItem: (itemId: string, x: number, y: number) => Promise<void>;
+  removeItem: (itemId: string) => Promise<void>;
 }
 
 export function useBoard(): UseBoard {
@@ -95,5 +96,29 @@ export function useBoard(): UseBoard {
     [setBoard],
   );
 
-  return { board, status, setStatus, refresh, addNote, addFiles, moveItem };
+  const removeItem = useCallback(
+    async (itemId: string) => {
+      const current = boardRef.current;
+      if (!current) return;
+
+      const optimistic: Board = {
+        ...current,
+        items: current.items.filter((item) => item.id !== itemId),
+      };
+      setBoard(optimistic);
+
+      try {
+        const next = await api.deleteItem(current.id, itemId);
+        setBoard(next);
+        setStatus("アイテムを削除しました。");
+      } catch (error) {
+        setBoard(current);
+        const message = error instanceof Error ? error.message : String(error);
+        setStatus(`削除に失敗しました: ${message}`);
+      }
+    },
+    [setBoard],
+  );
+
+  return { board, status, setStatus, refresh, addNote, addFiles, moveItem, removeItem };
 }

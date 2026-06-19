@@ -16,6 +16,7 @@ import {
   makeFileItem,
   makeNoteItem,
   normalizeTitle,
+  removeItem,
   serializeBoard,
   toFiniteNumber,
   touchBoard,
@@ -234,6 +235,32 @@ export async function updateItemPosition(
   await storage.metadata.putBoard(board);
 
   return { item };
+}
+
+export async function deleteItem(
+  storage: StorageProvider,
+  boardId: string,
+  itemId: string,
+): Promise<{ board: Board }> {
+  const board = await loadBoard(storage, boardId);
+  const item = findItem(board, itemId);
+  if (!item) {
+    throw notFound("Item not found.");
+  }
+
+  removeItem(board, itemId);
+  touchBoard(board);
+  await storage.metadata.putBoard(board);
+  logger.info("item.delete", { boardId, itemId, type: item.type });
+
+  if (isFileItem(item)) {
+    // Best-effort: GC is the safety net if this fails.
+    await storage.blobs.delete(item.blob).catch((err: unknown) => {
+      logger.warn("item.delete.blob_fail", { boardId, itemId, error: err });
+    });
+  }
+
+  return { board: serializeBoard(board) };
 }
 
 export interface ResolvedFile {

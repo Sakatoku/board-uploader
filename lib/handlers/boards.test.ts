@@ -6,6 +6,7 @@ import {
   addNote,
   attachFiles,
   createBoard,
+  deleteItem,
   getBoard,
   resolveFile,
   updateItemPosition,
@@ -131,6 +132,32 @@ describe("updateItemPosition", () => {
     await expect(
       updateItemPosition(storage, boardId, "ghost", { x: 1, y: 1 }),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe("deleteItem", () => {
+  it("removes the item and returns the updated board", async () => {
+    const boardId = await newBoardId();
+    const { item } = await addNote(storage, boardId, { text: "bye", x: 0, y: 0 });
+    const { board } = await deleteItem(storage, boardId, item.id);
+    expect(board.items).toHaveLength(0);
+  });
+
+  it("throws 404 when the item does not exist", async () => {
+    const boardId = await newBoardId();
+    await expect(deleteItem(storage, boardId, "nope")).rejects.toMatchObject({
+      statusCode: 404,
+    });
+  });
+
+  it("deletes the blob for a file item", async () => {
+    const boardId = await newBoardId();
+    const { items } = await addFiles(storage, boardId, [
+      { data: Buffer.from("x"), originalName: "a.png", mimeType: "image/png", size: 1 },
+    ], {});
+    const fileItem = items[0];
+    await deleteItem(storage, boardId, fileItem.id);
+    await expect(storage.blobs.read(fileItem.blob)).rejects.toThrow();
   });
 });
 

@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   makeBoard,
   makeFileItem,
+  makeNoteItem,
   normalizeTitle,
+  removeItem,
   toFiniteNumber,
   serializeBoard,
   LIMITS,
@@ -94,6 +96,23 @@ describe("makeFileItem", () => {
 
   it("text/plain → file (fallback)", () => {
     expect(makeFileItem({ ...base, mimeType: "text/plain" }).type).toBe("file");
+  });
+});
+
+describe("removeItem", () => {
+  it("removes the item and returns it", () => {
+    const board = makeBoard("Test");
+    const note = makeNoteItem({ text: "hi", x: 0, y: 0 });
+    board.items.push(note);
+    const removed = removeItem(board, note.id);
+    expect(removed).toBe(note);
+    expect(board.items).toHaveLength(0);
+  });
+
+  it("returns undefined for unknown id", () => {
+    const board = makeBoard("Test");
+    expect(removeItem(board, "nope")).toBeUndefined();
+    expect(board.items).toHaveLength(0);
   });
 });
 

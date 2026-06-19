@@ -273,6 +273,26 @@ h2 {
   white-space: nowrap;
 }
 
+.item-delete {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0 4px;
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #aaa);
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1;
+  border-radius: 4px;
+  opacity: 0.6;
+}
+
+.item-delete:hover {
+  color: var(--color-danger, #e55);
+  opacity: 1;
+  background: rgba(200, 60, 60, 0.1);
+}
+
 .item-body {
   padding: 14px;
 }

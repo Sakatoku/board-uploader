@@ -112,13 +112,13 @@ function makePdf(overrides: Partial<FileItem> = {}): FileItem {
 
 describe("video item", () => {
   it("shows VIDEO badge", () => {
-    render(<BoardItemView boardId={BOARD_ID} item={makeVideo()} onDragStart={noop} />);
+    render(<BoardItemView boardId={BOARD_ID} item={makeVideo()} onDragStart={noop} onDelete={noop} />);
     expect(screen.getByText("VIDEO")).toBeTruthy();
   });
 
   it("renders a video element", () => {
     const { container } = render(
-      <BoardItemView boardId={BOARD_ID} item={makeVideo({ id: "video-id" })} onDragStart={noop} />,
+      <BoardItemView boardId={BOARD_ID} item={makeVideo({ id: "video-id" })} onDragStart={noop} onDelete={noop} />,
     );
     const video = container.querySelector("video");
     expect(video).toBeTruthy();
@@ -126,25 +126,25 @@ describe("video item", () => {
   });
 
   it("renders the 開く link", () => {
-    render(<BoardItemView boardId={BOARD_ID} item={makeVideo({ id: "video-id" })} onDragStart={noop} />);
+    render(<BoardItemView boardId={BOARD_ID} item={makeVideo({ id: "video-id" })} onDragStart={noop} onDelete={noop} />);
     expect(screen.getByText("開く")).toBeTruthy();
   });
 
   it("renders the download link", () => {
-    render(<BoardItemView boardId={BOARD_ID} item={makeVideo({ id: "video-id" })} onDragStart={noop} />);
+    render(<BoardItemView boardId={BOARD_ID} item={makeVideo({ id: "video-id" })} onDragStart={noop} onDelete={noop} />);
     expect(screen.getByText("ダウンロード")).toBeTruthy();
   });
 });
 
 describe("audio item", () => {
   it("shows AUDIO badge", () => {
-    render(<BoardItemView boardId={BOARD_ID} item={makeAudio()} onDragStart={noop} />);
+    render(<BoardItemView boardId={BOARD_ID} item={makeAudio()} onDragStart={noop} onDelete={noop} />);
     expect(screen.getByText("AUDIO")).toBeTruthy();
   });
 
   it("renders an audio element", () => {
     const { container } = render(
-      <BoardItemView boardId={BOARD_ID} item={makeAudio({ id: "audio-id" })} onDragStart={noop} />,
+      <BoardItemView boardId={BOARD_ID} item={makeAudio({ id: "audio-id" })} onDragStart={noop} onDelete={noop} />,
     );
     const audio = container.querySelector("audio");
     expect(audio).toBeTruthy();
@@ -152,20 +152,20 @@ describe("audio item", () => {
   });
 
   it("does not render the 開く link", () => {
-    render(<BoardItemView boardId={BOARD_ID} item={makeAudio()} onDragStart={noop} />);
+    render(<BoardItemView boardId={BOARD_ID} item={makeAudio()} onDragStart={noop} onDelete={noop} />);
     expect(screen.queryByText("開く")).toBeNull();
   });
 });
 
 describe("pdf item", () => {
   it("shows PDF badge", () => {
-    render(<BoardItemView boardId={BOARD_ID} item={makePdf()} onDragStart={noop} />);
+    render(<BoardItemView boardId={BOARD_ID} item={makePdf()} onDragStart={noop} onDelete={noop} />);
     expect(screen.getByText("PDF")).toBeTruthy();
   });
 
   it("renders an iframe", () => {
     const { container } = render(
-      <BoardItemView boardId={BOARD_ID} item={makePdf({ id: "pdf-id" })} onDragStart={noop} />,
+      <BoardItemView boardId={BOARD_ID} item={makePdf({ id: "pdf-id" })} onDragStart={noop} onDelete={noop} />,
     );
     const iframe = container.querySelector("iframe");
     expect(iframe).toBeTruthy();
@@ -173,26 +173,56 @@ describe("pdf item", () => {
   });
 
   it("renders the 開く link", () => {
-    render(<BoardItemView boardId={BOARD_ID} item={makePdf({ id: "pdf-id" })} onDragStart={noop} />);
+    render(<BoardItemView boardId={BOARD_ID} item={makePdf({ id: "pdf-id" })} onDragStart={noop} onDelete={noop} />);
     expect(screen.getByText("開く")).toBeTruthy();
+  });
+});
+
+describe("delete button", () => {
+  it("renders a delete button on every item", () => {
+    const { container } = render(
+      <BoardItemView boardId={BOARD_ID} item={makeNote()} onDragStart={noop} onDelete={noop} />,
+    );
+    expect(container.querySelector(".item-delete")).toBeTruthy();
+  });
+
+  it("calls onDelete with item id after confirm", () => {
+    vi.spyOn(window, "confirm").mockReturnValueOnce(true);
+    const onDelete = vi.fn();
+    render(
+      <BoardItemView boardId={BOARD_ID} item={makeNote()} onDragStart={noop} onDelete={onDelete} />,
+    );
+    const btn = document.querySelector(".item-delete") as HTMLElement;
+    btn.click();
+    expect(onDelete).toHaveBeenCalledWith(makeNote().id);
+  });
+
+  it("does not call onDelete when confirm is cancelled", () => {
+    vi.spyOn(window, "confirm").mockReturnValueOnce(false);
+    const onDelete = vi.fn();
+    render(
+      <BoardItemView boardId={BOARD_ID} item={makeNote()} onDragStart={noop} onDelete={onDelete} />,
+    );
+    (document.querySelector(".item-delete") as HTMLElement).click();
+    expect(onDelete).not.toHaveBeenCalled();
   });
 });
 
 describe("BoardItemView", () => {
   describe("note item", () => {
     it("renders the note text", () => {
-      render(<BoardItemView boardId={BOARD_ID} item={makeNote()} onDragStart={noop} />);
+      render(<BoardItemView boardId={BOARD_ID} item={makeNote()} onDragStart={noop} onDelete={noop} />);
       expect(screen.getByText("Hello world")).toBeTruthy();
     });
 
     it("shows TEXT badge", () => {
-      render(<BoardItemView boardId={BOARD_ID} item={makeNote()} onDragStart={noop} />);
+      render(<BoardItemView boardId={BOARD_ID} item={makeNote()} onDragStart={noop} onDelete={noop} />);
       expect(screen.getByText("TEXT")).toBeTruthy();
     });
 
     it("renders at the item's x/y position", () => {
       const { container } = render(
-        <BoardItemView boardId={BOARD_ID} item={makeNote({ x: 120, y: 240 })} onDragStart={noop} />,
+        <BoardItemView boardId={BOARD_ID} item={makeNote({ x: 120, y: 240 })} onDragStart={noop} onDelete={noop} />,
       );
       const article = container.querySelector("article");
       expect(article?.style.left).toBe("120px");
@@ -201,7 +231,7 @@ describe("BoardItemView", () => {
 
     it("applies the 'note' CSS class", () => {
       const { container } = render(
-        <BoardItemView boardId={BOARD_ID} item={makeNote()} onDragStart={noop} />,
+        <BoardItemView boardId={BOARD_ID} item={makeNote()} onDragStart={noop} onDelete={noop} />,
       );
       expect(container.querySelector("article")?.className).toContain("note");
     });
@@ -209,66 +239,66 @@ describe("BoardItemView", () => {
 
   describe("image item", () => {
     it("shows IMAGE badge", () => {
-      render(<BoardItemView boardId={BOARD_ID} item={makeImage()} onDragStart={noop} />);
+      render(<BoardItemView boardId={BOARD_ID} item={makeImage()} onDragStart={noop} onDelete={noop} />);
       expect(screen.getByText("IMAGE")).toBeTruthy();
     });
 
     it("renders the image element", () => {
       const { container } = render(
-        <BoardItemView boardId={BOARD_ID} item={makeImage()} onDragStart={noop} />,
+        <BoardItemView boardId={BOARD_ID} item={makeImage()} onDragStart={noop} onDelete={noop} />,
       );
       expect(container.querySelector("img")).toBeTruthy();
     });
 
     it("renders the download link", () => {
-      render(<BoardItemView boardId={BOARD_ID} item={makeImage({ id: "img-id" })} onDragStart={noop} />);
+      render(<BoardItemView boardId={BOARD_ID} item={makeImage({ id: "img-id" })} onDragStart={noop} onDelete={noop} />);
       const link = screen.getByText("ダウンロード") as HTMLAnchorElement;
       expect(link.href).toContain("/api/boards/board-1/items/img-id/download");
     });
 
     it("renders the open link for images", () => {
-      render(<BoardItemView boardId={BOARD_ID} item={makeImage({ id: "img-id" })} onDragStart={noop} />);
+      render(<BoardItemView boardId={BOARD_ID} item={makeImage({ id: "img-id" })} onDragStart={noop} onDelete={noop} />);
       const link = screen.getByText("開く") as HTMLAnchorElement;
       expect(link.href).toContain("/api/boards/board-1/items/img-id/content");
     });
 
     it("displays the file name and mime type", () => {
-      render(<BoardItemView boardId={BOARD_ID} item={makeImage()} onDragStart={noop} />);
+      render(<BoardItemView boardId={BOARD_ID} item={makeImage()} onDragStart={noop} onDelete={noop} />);
       expect(screen.getByText("photo.png")).toBeTruthy();
       expect(screen.getByText(/image\/png/)).toBeTruthy();
     });
 
     it("formats size in KB", () => {
-      render(<BoardItemView boardId={BOARD_ID} item={makeImage({ size: 2048 })} onDragStart={noop} />);
+      render(<BoardItemView boardId={BOARD_ID} item={makeImage({ size: 2048 })} onDragStart={noop} onDelete={noop} />);
       expect(screen.getByText(/2\.0 KB/)).toBeTruthy();
     });
   });
 
   describe("file item (non-image)", () => {
     it("shows FILE badge", () => {
-      render(<BoardItemView boardId={BOARD_ID} item={makeFile()} onDragStart={noop} />);
+      render(<BoardItemView boardId={BOARD_ID} item={makeFile()} onDragStart={noop} onDelete={noop} />);
       expect(screen.getByText("FILE")).toBeTruthy();
     });
 
     it("does not render an image element", () => {
       const { container } = render(
-        <BoardItemView boardId={BOARD_ID} item={makeFile()} onDragStart={noop} />,
+        <BoardItemView boardId={BOARD_ID} item={makeFile()} onDragStart={noop} onDelete={noop} />,
       );
       expect(container.querySelector("img")).toBeNull();
     });
 
     it("does not render an 開く link", () => {
-      render(<BoardItemView boardId={BOARD_ID} item={makeFile()} onDragStart={noop} />);
+      render(<BoardItemView boardId={BOARD_ID} item={makeFile()} onDragStart={noop} onDelete={noop} />);
       expect(screen.queryByText("開く")).toBeNull();
     });
 
     it("formats size in MB", () => {
-      render(<BoardItemView boardId={BOARD_ID} item={makeFile({ size: 1024 * 1024 })} onDragStart={noop} />);
+      render(<BoardItemView boardId={BOARD_ID} item={makeFile({ size: 1024 * 1024 })} onDragStart={noop} onDelete={noop} />);
       expect(screen.getByText(/1\.0 MB/)).toBeTruthy();
     });
 
     it("formats size in bytes when under 1 KB", () => {
-      render(<BoardItemView boardId={BOARD_ID} item={makeFile({ size: 512 })} onDragStart={noop} />);
+      render(<BoardItemView boardId={BOARD_ID} item={makeFile({ size: 512 })} onDragStart={noop} onDelete={noop} />);
       expect(screen.getByText(/512 B/)).toBeTruthy();
     });
   });

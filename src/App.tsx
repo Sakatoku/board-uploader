@@ -12,7 +12,7 @@ import { getWriteKey, hasWriteKey, setWriteKey } from "./lib/auth";
 import { log } from "./lib/log";
 
 export default function App() {
-  const { board, status, setStatus, refresh, addNote, addFiles, moveItem } = useBoard();
+  const { board, status, setStatus, refresh, addNote, addFiles, moveItem, removeItem } = useBoard();
   const canvasRef = useRef<HTMLElement>(null);
   const lastPointRef = useRef<Point>({ x: 60, y: 60 });
   const viewRef = useRef<Viewport>({ panX: 0, panY: 0, zoom: 1 });
@@ -78,6 +78,17 @@ export default function App() {
       reportWriteError(error);
     }
   }, [addNote, setStatus, reportWriteError]);
+
+  const handleDelete = useCallback(
+    async (itemId: string) => {
+      try {
+        await removeItem(itemId);
+      } catch (error) {
+        reportWriteError(error);
+      }
+    },
+    [removeItem, reportWriteError],
+  );
 
   const handleCopyLink = useCallback(async () => {
     try {
@@ -202,6 +213,7 @@ export default function App() {
         onResetView={reset}
         onDragStart={startDrag}
         onDropFiles={uploadAt}
+        onDelete={handleDelete}
       />
       {DEBUG_UI && <DebugPanel open={debugOpen} onClose={() => setDebugOpen(false)} onCopyStatus={setStatus} />}
     </div>

@@ -3,7 +3,7 @@
 Board Uploader の現状整理と今後の計画。
 方針・制約・ファイルマップ → [CLAUDE.md](./CLAUDE.md)
 
-最終更新: 2026-06-19（フロントエンドテスト追加により P1.5 完了）
+最終更新: 2026-06-19（アイテム削除 UI 実装）
 
 ---
 
@@ -15,7 +15,7 @@ Board Uploader の現状整理と今後の計画。
 | バックエンド | Express 5 → Vercel Serverless Function（`api/index.ts`）。CommonJS 固定 |
 | ストレージ | Vercel Blob（バイナリ＋ボードJSON）。`StorageProvider` で抽象化（vercel-blob / pcloud / mock） |
 | 整合性 | `cache:"no-store"` ＋ユニーククエリのオリジン直読みで解消。クライアントリトライを多層防御として継続 |
-| テスト | Vitest 83件（domain / handlers / gc / geometry / useDrag / コンポーネント）。jsdom 環境でフロントエンドテスト済み |
+| テスト | Vitest 108件（domain / handlers / gc / geometry / useDrag / コンポーネント）。jsdom 環境でフロントエンドテスト済み |
 | 認証 | Stage-1（書き込みゲート）実装済み。Stage-2（JWT Cookie + QR）は未着手 |
 | CI | GitHub Actions（typecheck×2 + test + build）稼働中 |
 
@@ -31,6 +31,8 @@ Board Uploader の現状整理と今後の計画。
 - ✓ **無限キャンバス＋ズーム**: ワールド座標＋useViewport（パン/ピンチ/ホイール）
 - ✓ **孤立 blob GC**: `onUploadCompleted` でマーカー書き込み → 10 分 grace period 後にサイレント GC。`POST /api/admin/gc` で手動トリガーも可。
 - ✓ **フロントエンドテスト**: `useDrag`（ドラッグ座標計算 15件）、`Header`（11件）、`BoardItemView`（15件）を jsdom 環境で追加。計83件。
+- ✓ **video / audio / PDF インラインプレビュー**: MIME 判別拡張・`<video>` / `<audio>` / `<iframe>` レンダリング・バッジ・「開く」リンク追加。テスト計100件。
+- ✓ **アイテム削除**: カードヘッダーの `×` ボタン＋確認ダイアログ。楽観的削除・ロールバック・blob best-effort 削除（GC は多層防御として継続）。テスト計108件。
 
 ---
 
@@ -45,16 +47,7 @@ Board Uploader の現状整理と今後の計画。
 
 ### P3 — 仕上げ・将来
 
-- **対応ファイル拡張（video / audio / pdf）**: インラインプレビュー追加。バックエンド・API 変更なし、フロントエンドのみ。
-  - `lib/domain/types.ts` — `ItemType` に `"video" | "audio" | "pdf"` 追加
-  - `lib/domain/board.ts` — `makeFileItem` の MIME 判別拡張（`video/*` → `"video"`, `audio/*` → `"audio"`, `application/pdf` → `"pdf"`）
-  - `src/types.ts` — クライアント側 `isFileItem` ガード同期
-  - `src/components/BoardItemView.tsx` — `<video controls>` / `<audio controls>` / `<iframe>` プレビュー追加、バッジ・card-actions 更新
-  - CSS — プレーヤー・iframe サイズ調整
-  - テスト更新（makeFileItem 判定 + レンダリング）
-  - text/plain 等テキスト系はフェッチが必要なため別タスクに分離
-
-- **ファイル操作の完全化**: 削除 / リネーム / テキスト編集 / 移動の UI と API。削除は確認ダイアログ＋構造化ログ必須。
+- **ファイル操作の完全化**: リネーム / テキスト編集 / 移動の UI と API。（削除は実装済み）
 
 - **認証 Stage-2**: JWT（HttpOnly cookie）+ QR ワンタイムトークンによるデバイス信頼転送。あわせて Blob 直 URL を関数プロキシ経由に切替（読み取り保護。`serveFile` は既に proxy 経路あり）。
 

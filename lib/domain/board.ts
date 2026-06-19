@@ -100,6 +100,13 @@ export function findItem(board: Board, itemId: string): BoardItem | undefined {
   return board.items.find((item) => item.id === itemId);
 }
 
+export function removeItem(board: Board, itemId: string): BoardItem | undefined {
+  const index = board.items.findIndex((item) => item.id === itemId);
+  if (index === -1) return undefined;
+  const [removed] = board.items.splice(index, 1);
+  return removed;
+}
+
 /** Stable, presentation-ready board ordering (oldest item first). */
 export function serializeBoard(board: Board): Board {
   return {
