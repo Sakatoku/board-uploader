@@ -111,9 +111,9 @@ function makePdf(overrides: Partial<FileItem> = {}): FileItem {
 }
 
 describe("video item", () => {
-  it("shows VIDEO badge", () => {
+  it("shows the video badge icon", () => {
     render(<BoardItemView boardId={BOARD_ID} item={makeVideo()} onDragStart={noop} onDelete={noop} />);
-    expect(screen.getByText("VIDEO")).toBeTruthy();
+    expect(screen.getByLabelText("動画")).toBeTruthy();
   });
 
   it("renders a video element", () => {
@@ -137,9 +137,9 @@ describe("video item", () => {
 });
 
 describe("audio item", () => {
-  it("shows AUDIO badge", () => {
+  it("shows the audio badge icon", () => {
     render(<BoardItemView boardId={BOARD_ID} item={makeAudio()} onDragStart={noop} onDelete={noop} />);
-    expect(screen.getByText("AUDIO")).toBeTruthy();
+    expect(screen.getByLabelText("音声")).toBeTruthy();
   });
 
   it("renders an audio element", () => {
@@ -158,9 +158,9 @@ describe("audio item", () => {
 });
 
 describe("pdf item", () => {
-  it("shows PDF badge", () => {
+  it("shows the pdf badge icon", () => {
     render(<BoardItemView boardId={BOARD_ID} item={makePdf()} onDragStart={noop} onDelete={noop} />);
-    expect(screen.getByText("PDF")).toBeTruthy();
+    expect(screen.getByLabelText("PDF")).toBeTruthy();
   });
 
   it("renders an iframe", () => {
@@ -215,9 +215,9 @@ describe("BoardItemView", () => {
       expect(screen.getByText("Hello world")).toBeTruthy();
     });
 
-    it("shows TEXT badge", () => {
+    it("shows the text badge icon", () => {
       render(<BoardItemView boardId={BOARD_ID} item={makeNote()} onDragStart={noop} onDelete={noop} />);
-      expect(screen.getByText("TEXT")).toBeTruthy();
+      expect(screen.getByLabelText("テキスト")).toBeTruthy();
     });
 
     it("renders at the item's x/y position", () => {
@@ -238,9 +238,9 @@ describe("BoardItemView", () => {
   });
 
   describe("image item", () => {
-    it("shows IMAGE badge", () => {
+    it("shows the image badge icon", () => {
       render(<BoardItemView boardId={BOARD_ID} item={makeImage()} onDragStart={noop} onDelete={noop} />);
-      expect(screen.getByText("IMAGE")).toBeTruthy();
+      expect(screen.getByLabelText("画像")).toBeTruthy();
     });
 
     it("renders the image element", () => {
@@ -275,9 +275,9 @@ describe("BoardItemView", () => {
   });
 
   describe("file item (non-image)", () => {
-    it("shows FILE badge", () => {
+    it("shows the file badge icon", () => {
       render(<BoardItemView boardId={BOARD_ID} item={makeFile()} onDragStart={noop} onDelete={noop} />);
-      expect(screen.getByText("FILE")).toBeTruthy();
+      expect(screen.getByLabelText("ファイル")).toBeTruthy();
     });
 
     it("does not render an image element", () => {

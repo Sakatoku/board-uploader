@@ -10,13 +10,63 @@ function formatBytes(size: number): string {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function badgeText(item: BoardItem): string {
-  if (item.type === "note") return "TEXT";
-  if (item.type === "image") return "IMAGE";
-  if (item.type === "video") return "VIDEO";
-  if (item.type === "audio") return "AUDIO";
+function badgeLabel(item: BoardItem): string {
+  if (item.type === "note") return "テキスト";
+  if (item.type === "image") return "画像";
+  if (item.type === "video") return "動画";
+  if (item.type === "audio") return "音声";
   if (item.type === "pdf") return "PDF";
-  return "FILE";
+  return "ファイル";
+}
+
+/** Type icon shown in the item header, replacing the old text tag (TEXT/IMAGE/...). */
+function BadgeIcon({ type }: { type: BoardItem["type"] }) {
+  const common = {
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+  switch (type) {
+    case "note":
+      return (
+        <svg {...common}>
+          <path d="M4 6h16M4 12h16M4 18h10" />
+        </svg>
+      );
+    case "image":
+      return (
+        <svg {...common}>
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <path d="M21 15l-5-5L5 21" />
+        </svg>
+      );
+    case "video":
+      return (
+        <svg {...common}>
+          <rect x="3" y="5" width="14" height="14" rx="2" />
+          <path d="M17 9.5l4-2.5v10l-4-2.5z" />
+        </svg>
+      );
+    case "audio":
+      return (
+        <svg {...common}>
+          <path d="M9 18V5l12-2v13" />
+          <circle cx="6" cy="18" r="3" />
+          <circle cx="18" cy="16" r="3" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...common}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" />
+        </svg>
+      );
+  }
 }
 
 const IMG_RETRY_DELAYS = [600, 1200, 2000, 3000, 4000];
@@ -75,7 +125,9 @@ export function BoardItemView({ boardId, item, onDragStart, onDelete }: Props) {
       style={{ left: `${item.x}px`, top: `${item.y}px` }}
     >
       <header className="item-header" onPointerDown={handlePointerDown}>
-        <span className="item-badge">{badgeText(item)}</span>
+        <span className="item-badge" title={badgeLabel(item)} aria-label={badgeLabel(item)}>
+          <BadgeIcon type={item.type} />
+        </span>
         <span className="item-title">{item.title}</span>
         <button
           type="button"
