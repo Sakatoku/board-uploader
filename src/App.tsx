@@ -6,6 +6,8 @@ import { useViewport } from "./hooks/useViewport";
 import { Header } from "./components/Header";
 import { BoardCanvas } from "./components/BoardCanvas";
 import { DebugPanel } from "./components/DebugPanel";
+import { AddNoteDialog } from "./components/AddNoteDialog";
+import { WriteKeyDialog } from "./components/WriteKeyDialog";
 import { ApiError, getConfig } from "./lib/api";
 import { DEBUG_UI } from "./lib/flags";
 import { getWriteKey, hasWriteKey, setWriteKey } from "./lib/auth";
@@ -19,15 +21,34 @@ export default function App() {
   const [debugOpen, setDebugOpen] = useState(false);
   const [writeProtected, setWriteProtected] = useState(false);
   const [keySet, setKeySet] = useState(hasWriteKey());
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+  const [keyDialogOpen, setKeyDialogOpen] = useState(false);
+  // Dialogs are async (unlike window.prompt), so flows that need to retry after a
+  // key is saved (initial load, write-failure recovery) stash their continuation here.
+  const afterKeySavedRef = useRef<(() => void) | null>(null);
 
-  // Prompt for / update the write key (stage-1 auth).
-  const promptForWriteKey = useCallback(() => {
-    const next = window.prompt("編集キー（書き込み用）を入力してください。", getWriteKey());
-    if (next === null) return;
-    setWriteKey(next);
-    setKeySet(hasWriteKey());
-    setStatus(next.trim() ? "編集キーを保存しました。" : "編集キーを消去しました。");
-  }, [setStatus]);
+  const openWriteKeyDialog = useCallback((onSaved?: () => void) => {
+    afterKeySavedRef.current = onSaved ?? null;
+    setKeyDialogOpen(true);
+  }, []);
+
+  const handleWriteKeySubmit = useCallback(
+    (next: string) => {
+      setKeyDialogOpen(false);
+      setWriteKey(next);
+      setKeySet(hasWriteKey());
+      setStatus(next.trim() ? "編集キーを保存しました。" : "編集キーを消去しました。");
+      const after = afterKeySavedRef.current;
+      afterKeySavedRef.current = null;
+      after?.();
+    },
+    [setStatus],
+  );
+
+  const handleWriteKeyCancel = useCallback(() => {
+    setKeyDialogOpen(false);
+    afterKeySavedRef.current = null;
+  }, []);
 
   // Turn a failed write into a helpful message; on 401 invite the user to (re)set
   // the key. Returns nothing — sets status as a side effect.
@@ -35,12 +56,12 @@ export default function App() {
     (error: unknown) => {
       if (error instanceof ApiError && error.status === 401) {
         setStatus("編集キーが必要です（または不正です）。ヘッダーの「編集キー」から設定してください。");
-        promptForWriteKey();
+        openWriteKeyDialog();
         return;
       }
       setStatus(error instanceof Error ? error.message : String(error));
     },
-    [setStatus, promptForWriteKey],
+    [setStatus, openWriteKeyDialog],
   );
 
   const { view, panning, onBackgroundPointerDown, zoomIn, zoomOut, reset } = useViewport({
@@ -67,17 +88,23 @@ export default function App() {
     [uploadAt],
   );
 
-  const handleAddNote = useCallback(async () => {
-    const text = window.prompt("追加したいテキストを入力してください。");
-    if (!text || !text.trim()) return;
-    try {
-      setStatus("テキストを追加しています...");
-      await addNote(text.trim(), lastPointRef.current);
-      setStatus("テキストを追加しました。");
-    } catch (error) {
-      reportWriteError(error);
-    }
-  }, [addNote, setStatus, reportWriteError]);
+  const handleAddNoteClick = useCallback(() => setNoteDialogOpen(true), []);
+
+  const handleAddNoteCancel = useCallback(() => setNoteDialogOpen(false), []);
+
+  const handleAddNoteSubmit = useCallback(
+    async (text: string) => {
+      setNoteDialogOpen(false);
+      try {
+        setStatus("テキストを追加しています...");
+        await addNote(text, lastPointRef.current);
+        setStatus("テキストを追加しました。");
+      } catch (error) {
+        reportWriteError(error);
+      }
+    },
+    [addNote, setStatus, reportWriteError],
+  );
 
   const handleDelete = useCallback(
     async (itemId: string) => {
@@ -107,10 +134,9 @@ export default function App() {
     const onFail = (error: unknown, allowRetry: boolean) => {
       if (allowRetry && error instanceof ApiError && error.status === 401) {
         setStatus("ボードの作成には編集キーが必要です。設定してください。");
-        promptForWriteKey();
-        if (hasWriteKey()) {
+        openWriteKeyDialog(() => {
           refresh().catch((retryError) => onFail(retryError, false));
-        }
+        });
         return;
       }
       const message = error instanceof Error ? error.message : String(error);
@@ -118,7 +144,7 @@ export default function App() {
       log("refreshBoard failed", message, "error");
     };
     refresh().catch((error) => onFail(error, true));
-  }, [refresh, setStatus, promptForWriteKey]);
+  }, [refresh, setStatus, openWriteKeyDialog]);
 
   // Learn whether the server enforces a write key, and nudge if one is needed.
   useEffect(() => {
@@ -192,14 +218,14 @@ export default function App() {
     <div className="app-shell">
       <Header
         onFiles={handleFiles}
-        onAddNote={handleAddNote}
+        onAddNote={handleAddNoteClick}
         showDebug={DEBUG_UI}
         onToggleDebug={() => setDebugOpen((open) => !open)}
         debugOpen={debugOpen}
         onCopyLink={handleCopyLink}
         writeProtected={writeProtected}
         keySet={keySet}
-        onEditKey={promptForWriteKey}
+        onEditKey={openWriteKeyDialog}
       />
       <BoardCanvas
         board={board}
@@ -216,6 +242,13 @@ export default function App() {
         onDelete={handleDelete}
       />
       {DEBUG_UI && <DebugPanel open={debugOpen} onClose={() => setDebugOpen(false)} onCopyStatus={setStatus} />}
+      <AddNoteDialog open={noteDialogOpen} onSubmit={handleAddNoteSubmit} onCancel={handleAddNoteCancel} />
+      <WriteKeyDialog
+        open={keyDialogOpen}
+        initialValue={getWriteKey()}
+        onSubmit={handleWriteKeySubmit}
+        onCancel={handleWriteKeyCancel}
+      />
     </div>
   );
 }
