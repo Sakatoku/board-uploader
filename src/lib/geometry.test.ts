@@ -1,6 +1,14 @@
 import { describe, it, expect } from "vitest";
 import type { Viewport } from "../types";
-import { clampZoom, zoomToward, clientToWorld, fitBounds, MIN_ZOOM, MAX_ZOOM } from "./geometry";
+import {
+  clampZoom,
+  zoomToward,
+  clientToWorld,
+  fitBounds,
+  computeOffscreenIndicators,
+  MIN_ZOOM,
+  MAX_ZOOM,
+} from "./geometry";
 
 /** Minimal canvas stub: clientToWorld only reads rect.left / rect.top. */
 function canvasAt(left: number, top: number): HTMLElement {
@@ -95,6 +103,57 @@ describe("fitBounds", () => {
   it("returns null for a zero-area bounding box", () => {
     expect(fitBounds({ minX: 10, minY: 10, maxX: 10, maxY: 50 }, { width: 800, height: 600 })).toBeNull();
     expect(fitBounds({ minX: 10, minY: 10, maxX: 50, maxY: 10 }, { width: 800, height: 600 })).toBeNull();
+  });
+});
+
+describe("computeOffscreenIndicators", () => {
+  const view: Viewport = { panX: 0, panY: 0, zoom: 1 };
+  const canvasSize = { width: 800, height: 600 };
+
+  it("skips items inside the visible canvas", () => {
+    const result = computeOffscreenIndicators([{ id: "a", x: 400, y: 300 }], view, canvasSize);
+    expect(result).toEqual([]);
+  });
+
+  it("clamps an off-screen item to the right edge and points right", () => {
+    const result = computeOffscreenIndicators([{ id: "a", x: 2000, y: 300 }], view, canvasSize);
+    expect(result).toHaveLength(1);
+    const [indicator] = result;
+    expect(indicator.id).toBe("a");
+    expect(indicator.worldX).toBe(2000);
+    expect(indicator.worldY).toBe(300);
+    expect(indicator.angle).toBeCloseTo(0, 6); // straight right from center
+    expect(indicator.x).toBeLessThanOrEqual(canvasSize.width);
+    expect(indicator.x).toBeGreaterThan(canvasSize.width / 2);
+    expect(indicator.y).toBeCloseTo(canvasSize.height / 2, 6); // dy was 0
+  });
+
+  it("clamps a diagonally off-screen item within the padded rectangle", () => {
+    const result = computeOffscreenIndicators([{ id: "a", x: -5000, y: -5000 }], view, canvasSize, 20);
+    expect(result).toHaveLength(1);
+    const [indicator] = result;
+    // Should land on (or inside) the padded box around the canvas center.
+    expect(indicator.x).toBeGreaterThanOrEqual(0);
+    expect(indicator.y).toBeGreaterThanOrEqual(0);
+    expect(indicator.x).toBeLessThan(canvasSize.width / 2);
+    expect(indicator.y).toBeLessThan(canvasSize.height / 2);
+  });
+
+  it("returns nothing when the canvas size hasn't been measured yet", () => {
+    const result = computeOffscreenIndicators([{ id: "a", x: 9999, y: 9999 }], view, { width: 0, height: 0 });
+    expect(result).toEqual([]);
+  });
+
+  it("only reports items that are actually off-screen", () => {
+    const result = computeOffscreenIndicators(
+      [
+        { id: "visible", x: 10, y: 10 },
+        { id: "offscreen", x: -500, y: -500 },
+      ],
+      view,
+      canvasSize,
+    );
+    expect(result.map((i) => i.id)).toEqual(["offscreen"]);
   });
 });
 

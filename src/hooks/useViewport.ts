@@ -29,6 +29,8 @@ export interface UseViewport {
   reset: () => void;
   /** Pan/zoom so every rendered board item is visible. No-op when the board is empty. */
   fitToContent: () => void;
+  /** Pan (keeping zoom) so the given world point is centered on screen. */
+  panToWorldPoint: (worldX: number, worldY: number) => void;
 }
 
 /** Live pinch/pan gesture against a stable set of active pointers. */
@@ -118,6 +120,17 @@ export function useViewport({ canvasRef, viewRef }: UseViewportArgs): UseViewpor
       setView(next);
     }
   }, [canvasRef, setView]);
+
+  const panToWorldPoint = useCallback(
+    (worldX: number, worldY: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const v = viewRef.current;
+      setView({ ...v, panX: rect.width / 2 - worldX * v.zoom, panY: rect.height / 2 - worldY * v.zoom });
+    },
+    [canvasRef, viewRef, setView],
+  );
 
   // Wheel: ctrl/cmd (or trackpad pinch) zooms toward the cursor; otherwise pan.
   useEffect(() => {
@@ -243,5 +256,5 @@ export function useViewport({ canvasRef, viewRef }: UseViewportArgs): UseViewpor
     log("viewport", `pan=(${Math.round(view.panX)},${Math.round(view.panY)}) zoom=${view.zoom.toFixed(2)}`);
   }, [view]);
 
-  return { view, onBackgroundPointerDown, panning, zoomIn, zoomOut, reset, fitToContent };
+  return { view, onBackgroundPointerDown, panning, zoomIn, zoomOut, reset, fitToContent, panToWorldPoint };
 }

@@ -204,6 +204,30 @@ h2 {
   background: rgba(255, 255, 255, 0.06);
 }
 
+.offscreen-indicator {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 0;
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-strong);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  box-shadow: var(--shadow-item);
+  transform: translate(-50%, -50%) rotate(var(--angle));
+  z-index: 2;
+}
+
+.offscreen-indicator:hover {
+  background: var(--accent);
+}
+
 .status-message {
   position: absolute;
   left: 16px;

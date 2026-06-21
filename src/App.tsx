@@ -64,7 +64,7 @@ export default function App() {
     [setStatus, openWriteKeyDialog],
   );
 
-  const { view, panning, onBackgroundPointerDown, zoomIn, zoomOut, reset, fitToContent } = useViewport({
+  const { view, panning, onBackgroundPointerDown, zoomIn, zoomOut, reset, fitToContent, panToWorldPoint } = useViewport({
     canvasRef,
     viewRef,
   });
@@ -238,6 +238,7 @@ export default function App() {
         onZoomOut={zoomOut}
         onResetView={reset}
         onFitToContent={fitToContent}
+        onPanToWorldPoint={panToWorldPoint}
         onDragStart={startDrag}
         onDropFiles={uploadAt}
         onDelete={handleDelete}

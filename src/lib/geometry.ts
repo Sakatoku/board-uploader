@@ -64,6 +64,69 @@ export function fitBounds(
   };
 }
 
+export interface OffscreenIndicator {
+  id: string;
+  /** Canvas-relative screen position to render the indicator at, clamped to the edge. */
+  x: number;
+  y: number;
+  /** Radians; rotate an arrow glyph by this to point toward the item. */
+  angle: number;
+  /** The item's own world coordinates, for panning to it on click. */
+  worldX: number;
+  worldY: number;
+}
+
+/**
+ * Find items whose anchor point (top-left, not the full rendered card) falls
+ * outside the visible canvas, and compute where to draw an edge arrow
+ * pointing toward each — the classic "radial clamp" off-screen indicator.
+ * Item width/height aren't accounted for, so this is an approximation: a
+ * card that's mostly off-screen but whose corner still pokes in won't get an
+ * indicator, and vice versa near the edge. Good enough for "don't get lost."
+ */
+export function computeOffscreenIndicators(
+  items: { id: string; x: number; y: number }[],
+  view: Viewport,
+  canvasSize: { width: number; height: number },
+  padding = 28,
+): OffscreenIndicator[] {
+  const { width, height } = canvasSize;
+  if (width <= 0 || height <= 0) {
+    return [];
+  }
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const halfW = Math.max(centerX - padding, 1);
+  const halfH = Math.max(centerY - padding, 1);
+
+  const indicators: OffscreenIndicator[] = [];
+  for (const item of items) {
+    const screenX = view.panX + item.x * view.zoom;
+    const screenY = view.panY + item.y * view.zoom;
+    if (screenX >= 0 && screenX <= width && screenY >= 0 && screenY <= height) {
+      continue;
+    }
+    const dx = screenX - centerX;
+    const dy = screenY - centerY;
+    if (dx === 0 && dy === 0) {
+      continue;
+    }
+    const scale = Math.min(
+      dx !== 0 ? halfW / Math.abs(dx) : Infinity,
+      dy !== 0 ? halfH / Math.abs(dy) : Infinity,
+    );
+    indicators.push({
+      id: item.id,
+      x: centerX + dx * scale,
+      y: centerY + dy * scale,
+      angle: Math.atan2(dy, dx),
+      worldX: item.x,
+      worldY: item.y,
+    });
+  }
+  return indicators;
+}
+
 /**
  * Convert a client (viewport) coordinate into a *world* (board) coordinate
  * under the current pan/zoom. Inverse of the `.board-world` transform:

@@ -1,12 +1,14 @@
 import {
+  useEffect,
   useState,
+  type CSSProperties,
   type DragEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
 import type { Board, BoardItem, Point, Viewport } from "../types";
 import { BoardItemView } from "./BoardItemView";
-import { clientToWorld } from "../lib/geometry";
+import { clientToWorld, computeOffscreenIndicators } from "../lib/geometry";
 
 interface Props {
   board: Board | null;
@@ -19,6 +21,7 @@ interface Props {
   onZoomOut: () => void;
   onResetView: () => void;
   onFitToContent: () => void;
+  onPanToWorldPoint: (worldX: number, worldY: number) => void;
   onDragStart: (item: BoardItem, element: HTMLElement, header: HTMLElement, event: ReactPointerEvent) => void;
   onDropFiles: (files: File[], point: Point) => void;
   onDelete: (itemId: string) => void;
@@ -38,12 +41,29 @@ export function BoardCanvas({
   onZoomOut,
   onResetView,
   onFitToContent,
+  onPanToWorldPoint,
   onDragStart,
   onDropFiles,
   onDelete,
 }: Props) {
   const [dragover, setDragover] = useState(false);
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const items = board?.items ?? [];
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const update = () => {
+      const rect = canvas.getBoundingClientRect();
+      setCanvasSize({ width: rect.width, height: rect.height });
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [canvasRef]);
+
+  const offscreenIndicators = computeOffscreenIndicators(items, view, canvasSize);
 
   const handleDragOver = (event: DragEvent) => {
     event.preventDefault();
@@ -91,6 +111,20 @@ export function BoardCanvas({
             <BoardItemView key={item.id} boardId={board.id} item={item} onDragStart={onDragStart} onDelete={onDelete} />
           ))}
       </div>
+
+      {offscreenIndicators.map((indicator) => (
+        <button
+          key={indicator.id}
+          type="button"
+          className="offscreen-indicator"
+          style={{ left: `${indicator.x}px`, top: `${indicator.y}px`, "--angle": `${indicator.angle}rad` } as CSSProperties}
+          onClick={() => onPanToWorldPoint(indicator.worldX, indicator.worldY)}
+          aria-label="画面外のアイテムへ移動"
+          title="画面外のアイテムへ移動"
+        >
+          ➤
+        </button>
+      ))}
 
       <div className="zoom-controls">
         <button
