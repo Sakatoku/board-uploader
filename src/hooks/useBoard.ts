@@ -27,6 +27,8 @@ export interface UseBoard {
   addFiles: (files: File[], point: Point) => Promise<void>;
   /** Optimistically move an item locally, then persist (retrying on 404). */
   moveItem: (itemId: string, x: number, y: number) => Promise<void>;
+  /** Optimistically rename an item locally, then persist (retrying on 404). */
+  renameItem: (itemId: string, title: string) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
 }
 
@@ -96,6 +98,34 @@ export function useBoard(): UseBoard {
     [setBoard],
   );
 
+  const renameItem = useCallback(
+    async (itemId: string, title: string) => {
+      const current = boardRef.current;
+      if (!current) return;
+
+      const optimistic: Board = {
+        ...current,
+        items: current.items.map((item) => (item.id === itemId ? { ...item, title } : item)),
+      };
+      setBoard(optimistic);
+
+      try {
+        const updated = await api.renameItem(current.id, itemId, title);
+        const latest = boardRef.current ?? optimistic;
+        setBoard({
+          ...latest,
+          items: latest.items.map((item) => (item.id === itemId ? updated : item)),
+        });
+        setStatus("名前を変更しました。");
+      } catch (error) {
+        setBoard(current);
+        const message = error instanceof Error ? error.message : String(error);
+        setStatus(`名前の変更に失敗しました: ${message}`);
+      }
+    },
+    [setBoard],
+  );
+
   const removeItem = useCallback(
     async (itemId: string) => {
       const current = boardRef.current;
@@ -120,5 +150,5 @@ export function useBoard(): UseBoard {
     [setBoard],
   );
 
-  return { board, status, setStatus, refresh, addNote, addFiles, moveItem, removeItem };
+  return { board, status, setStatus, refresh, addNote, addFiles, moveItem, renameItem, removeItem };
 }

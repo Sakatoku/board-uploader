@@ -25,6 +25,7 @@ interface Props {
   onDragStart: (item: BoardItem, element: HTMLElement, header: HTMLElement, event: ReactPointerEvent) => void;
   onDropFiles: (files: File[], point: Point) => void;
   onDelete: (itemId: string) => void;
+  onRename: (item: BoardItem) => void;
 }
 
 // Grid spacing in world units; scaled by zoom for the background dot pattern.
@@ -45,6 +46,7 @@ export function BoardCanvas({
   onDragStart,
   onDropFiles,
   onDelete,
+  onRename,
 }: Props) {
   const [dragover, setDragover] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
@@ -108,7 +110,14 @@ export function BoardCanvas({
       <div className="board-world" style={{ transform: worldTransform }}>
         {board &&
           items.map((item) => (
-            <BoardItemView key={item.id} boardId={board.id} item={item} onDragStart={onDragStart} onDelete={onDelete} />
+            <BoardItemView
+              key={item.id}
+              boardId={board.id}
+              item={item}
+              onDragStart={onDragStart}
+              onDelete={onDelete}
+              onRename={onRename}
+            />
           ))}
       </div>
 

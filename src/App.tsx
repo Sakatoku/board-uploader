@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Point, Viewport } from "./types";
+import type { BoardItem, Point, Viewport } from "./types";
 import { useBoard } from "./hooks/useBoard";
 import { useDrag } from "./hooks/useDrag";
 import { useViewport } from "./hooks/useViewport";
@@ -7,6 +7,7 @@ import { Header } from "./components/Header";
 import { BoardCanvas } from "./components/BoardCanvas";
 import { DebugPanel } from "./components/DebugPanel";
 import { AddNoteDialog } from "./components/AddNoteDialog";
+import { RenameDialog } from "./components/RenameDialog";
 import { WriteKeyDialog } from "./components/WriteKeyDialog";
 import { ApiError, getConfig } from "./lib/api";
 import { DEBUG_UI } from "./lib/flags";
@@ -16,7 +17,7 @@ import { clientToWorld } from "./lib/geometry";
 import { log } from "./lib/log";
 
 export default function App() {
-  const { board, status, setStatus, refresh, addNote, addFiles, moveItem, removeItem } = useBoard();
+  const { board, status, setStatus, refresh, addNote, addFiles, moveItem, renameItem, removeItem } = useBoard();
   const canvasRef = useRef<HTMLElement>(null);
   const lastPointRef = useRef<Point>({ x: 60, y: 60 });
   const viewRef = useRef<Viewport>({ panX: 0, panY: 0, zoom: 1 });
@@ -25,6 +26,7 @@ export default function App() {
   const [keySet, setKeySet] = useState(hasWriteKey());
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<BoardItem | null>(null);
   const [placeAtCenter, setPlaceAtCenter] = useState(getPlaceAtViewportCenter());
   // Dialogs are async (unlike window.prompt), so flows that need to retry after a
   // key is saved (initial load, write-failure recovery) stash their continuation here.
@@ -137,6 +139,24 @@ export default function App() {
       }
     },
     [removeItem, reportWriteError],
+  );
+
+  const handleRenameClick = useCallback((item: BoardItem) => setRenameTarget(item), []);
+
+  const handleRenameCancel = useCallback(() => setRenameTarget(null), []);
+
+  const handleRenameSubmit = useCallback(
+    async (title: string) => {
+      const target = renameTarget;
+      setRenameTarget(null);
+      if (!target) return;
+      try {
+        await renameItem(target.id, title);
+      } catch (error) {
+        reportWriteError(error);
+      }
+    },
+    [renameTarget, renameItem, reportWriteError],
   );
 
   const handleCopyLink = useCallback(async () => {
@@ -266,9 +286,16 @@ export default function App() {
         onDragStart={startDrag}
         onDropFiles={uploadAt}
         onDelete={handleDelete}
+        onRename={handleRenameClick}
       />
       {DEBUG_UI && <DebugPanel open={debugOpen} onClose={() => setDebugOpen(false)} onCopyStatus={setStatus} />}
       <AddNoteDialog open={noteDialogOpen} onSubmit={handleAddNoteSubmit} onCancel={handleAddNoteCancel} />
+      <RenameDialog
+        open={renameTarget !== null}
+        initialValue={renameTarget?.title ?? ""}
+        onSubmit={handleRenameSubmit}
+        onCancel={handleRenameCancel}
+      />
       <WriteKeyDialog
         open={keyDialogOpen}
         initialValue={getWriteKey()}

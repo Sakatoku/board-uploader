@@ -210,11 +210,15 @@ function isAllowedBlobUrl(url: string): boolean {
   }
 }
 
-export async function updateItemPosition(
+/**
+ * Partial update of an item: position (x and y together), title, or both in
+ * one PATCH. At least one of the two must be present.
+ */
+export async function updateItem(
   storage: StorageProvider,
   boardId: string,
   itemId: string,
-  input: { x?: unknown; y?: unknown },
+  input: { x?: unknown; y?: unknown; title?: unknown },
 ): Promise<{ item: BoardItem }> {
   const board = await loadBoard(storage, boardId);
   const item = findItem(board, itemId);
@@ -222,17 +226,36 @@ export async function updateItemPosition(
     throw notFound("Item not found.");
   }
 
-  const x = toFiniteNumber(input.x, NaN);
-  const y = toFiniteNumber(input.y, NaN);
-  if (Number.isNaN(x) || Number.isNaN(y)) {
-    throw badRequest("x and y must be valid numbers.");
+  const hasPosition = input.x !== undefined || input.y !== undefined;
+  const hasTitle = input.title !== undefined;
+  if (!hasPosition && !hasTitle) {
+    throw badRequest("Nothing to update.");
   }
 
-  item.x = x;
-  item.y = y;
+  if (hasPosition) {
+    const x = toFiniteNumber(input.x, NaN);
+    const y = toFiniteNumber(input.y, NaN);
+    if (Number.isNaN(x) || Number.isNaN(y)) {
+      throw badRequest("x and y must be valid numbers.");
+    }
+    item.x = x;
+    item.y = y;
+  }
+
+  if (hasTitle) {
+    const title = normalizeTitle(input.title);
+    if (!title) {
+      throw badRequest("Title is required.");
+    }
+    item.title = title;
+  }
+
   item.updatedAt = new Date().toISOString();
   touchBoard(board);
   await storage.metadata.putBoard(board);
+  if (hasTitle) {
+    logger.info("item.rename", { boardId, itemId, title: item.title });
+  }
 
   return { item };
 }

@@ -23,7 +23,7 @@ import {
   deleteItem,
   getBoard,
   resolveFile,
-  updateItemPosition,
+  updateItem,
   type UploadedFile,
 } from "./handlers/boards";
 import { gcOrphanBlobs } from "./handlers/gc";
@@ -150,11 +150,11 @@ export function createApp(): Express {
   }));
 
   app.patch("/api/boards/:boardId/items/:itemId", requireWriteKey, wrap(async (req, res) => {
-    const result = await updateItemPosition(
+    const result = await updateItem(
       getStorage(),
       param(req, "boardId"),
       param(req, "itemId"),
-      { x: req.body?.x, y: req.body?.y },
+      { x: req.body?.x, y: req.body?.y, title: req.body?.title },
     );
     res.json(result);
   }));

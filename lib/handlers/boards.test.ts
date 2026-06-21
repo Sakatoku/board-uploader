@@ -9,7 +9,7 @@ import {
   deleteItem,
   getBoard,
   resolveFile,
-  updateItemPosition,
+  updateItem,
 } from "./boards";
 
 let storage: MockStorageProvider;
@@ -110,11 +110,11 @@ describe("attachFiles (direct-upload path)", () => {
   });
 });
 
-describe("updateItemPosition", () => {
+describe("updateItem", () => {
   it("updates coordinates", async () => {
     const boardId = await newBoardId();
     const { item } = await addNote(storage, boardId, { text: "x", x: 0, y: 0 });
-    const result = await updateItemPosition(storage, boardId, item.id, { x: 50, y: 60 });
+    const result = await updateItem(storage, boardId, item.id, { x: 50, y: 60 });
     expect(result.item.x).toBe(50);
     expect(result.item.y).toBe(60);
   });
@@ -123,15 +123,47 @@ describe("updateItemPosition", () => {
     const boardId = await newBoardId();
     const { item } = await addNote(storage, boardId, { text: "x" });
     await expect(
-      updateItemPosition(storage, boardId, item.id, { x: "abc", y: 1 }),
+      updateItem(storage, boardId, item.id, { x: "abc", y: 1 }),
     ).rejects.toMatchObject({ statusCode: 400 });
   });
 
   it("404s for unknown item", async () => {
     const boardId = await newBoardId();
     await expect(
-      updateItemPosition(storage, boardId, "ghost", { x: 1, y: 1 }),
+      updateItem(storage, boardId, "ghost", { x: 1, y: 1 }),
     ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("renames the item", async () => {
+    const boardId = await newBoardId();
+    const { item } = await addNote(storage, boardId, { text: "x", x: 0, y: 0 });
+    const result = await updateItem(storage, boardId, item.id, { title: "  New name  " });
+    expect(result.item.title).toBe("New name");
+  });
+
+  it("rejects an empty title", async () => {
+    const boardId = await newBoardId();
+    const { item } = await addNote(storage, boardId, { text: "x" });
+    await expect(
+      updateItem(storage, boardId, item.id, { title: "   " }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("rejects when neither position nor title is provided", async () => {
+    const boardId = await newBoardId();
+    const { item } = await addNote(storage, boardId, { text: "x" });
+    await expect(updateItem(storage, boardId, item.id, {})).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+
+  it("updates position and title together", async () => {
+    const boardId = await newBoardId();
+    const { item } = await addNote(storage, boardId, { text: "x", x: 0, y: 0 });
+    const result = await updateItem(storage, boardId, item.id, { x: 5, y: 5, title: "Renamed" });
+    expect(result.item.x).toBe(5);
+    expect(result.item.y).toBe(5);
+    expect(result.item.title).toBe("Renamed");
   });
 });
 

@@ -321,9 +321,9 @@ h2 {
   white-space: nowrap;
 }
 
+.item-rename,
 .item-delete {
   flex-shrink: 0;
-  margin-left: auto;
   padding: 0 4px;
   background: none;
   border: none;
@@ -333,6 +333,16 @@ h2 {
   line-height: 1;
   border-radius: 4px;
   opacity: 0.6;
+}
+
+.item-delete {
+  margin-left: auto;
+}
+
+.item-rename:hover {
+  color: var(--accent);
+  opacity: 1;
+  background: rgba(76, 195, 255, 0.14);
 }
 
 .item-delete:hover {

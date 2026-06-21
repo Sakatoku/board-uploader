@@ -1,5 +1,5 @@
 import { upload } from "@vercel/blob/client";
-import type { Board, Point } from "../types";
+import type { Board, BoardItem, Point } from "../types";
 import { getWriteKey } from "./auth";
 import { log } from "./log";
 
@@ -180,24 +180,22 @@ export async function deleteItem(boardId: string, itemId: string): Promise<Board
 }
 
 /**
- * Persist a position. The backing store (Vercel Blob) is eventually
+ * PATCH an item's fields. The backing store (Vercel Blob) is eventually
  * consistent, so a freshly-added item may not be readable for a few seconds
  * and PATCH returns 404. Treat that as transient and retry with backoff.
  */
-export async function persistItemPosition(
+async function patchItemWithRetry<T>(
   boardId: string,
   itemId: string,
-  x: number,
-  y: number,
-): Promise<void> {
+  body: Record<string, unknown>,
+): Promise<T> {
   const delays = [400, 800, 1500, 2500, 4000];
   for (let attempt = 0; attempt <= delays.length; attempt += 1) {
     try {
-      await apiFetch(`/api/boards/${boardId}/items/${itemId}`, {
+      return await apiFetch<T>(`/api/boards/${boardId}/items/${itemId}`, {
         method: "PATCH",
-        body: JSON.stringify({ x, y }),
+        body: JSON.stringify(body),
       });
-      return;
     } catch (error) {
       const transient = error instanceof ApiError && error.status === 404;
       if (!transient || attempt === delays.length) {
@@ -212,6 +210,22 @@ export async function persistItemPosition(
       await sleep(wait);
     }
   }
+  // Unreachable: the loop above always returns or throws.
+  throw new Error("patchItemWithRetry: exhausted retries without resolving");
+}
+
+export async function persistItemPosition(
+  boardId: string,
+  itemId: string,
+  x: number,
+  y: number,
+): Promise<void> {
+  await patchItemWithRetry(boardId, itemId, { x, y });
+}
+
+export async function renameItem(boardId: string, itemId: string, title: string): Promise<BoardItem> {
+  const payload = await patchItemWithRetry<{ item: BoardItem }>(boardId, itemId, { title });
+  return payload.item;
 }
 
 export const contentUrl = (boardId: string, itemId: string) =>

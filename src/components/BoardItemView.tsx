@@ -100,9 +100,10 @@ interface Props {
   item: BoardItem;
   onDragStart: (item: BoardItem, element: HTMLElement, header: HTMLElement, event: ReactPointerEvent) => void;
   onDelete: (itemId: string) => void;
+  onRename: (item: BoardItem) => void;
 }
 
-export function BoardItemView({ boardId, item, onDragStart, onDelete }: Props) {
+export function BoardItemView({ boardId, item, onDragStart, onDelete, onRename }: Props) {
   const articleRef = useRef<HTMLElement>(null);
 
   const handlePointerDown = (event: ReactPointerEvent) => {
@@ -129,6 +130,16 @@ export function BoardItemView({ boardId, item, onDragStart, onDelete }: Props) {
           <BadgeIcon type={item.type} />
         </span>
         <span className="item-title">{item.title}</span>
+        <button
+          type="button"
+          className="item-rename"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => onRename(item)}
+          aria-label="名前を変更"
+          title="名前を変更"
+        >
+          ✎
+        </button>
         <button
           type="button"
           className="item-delete"
