@@ -11,6 +11,8 @@ import { WriteKeyDialog } from "./components/WriteKeyDialog";
 import { ApiError, getConfig } from "./lib/api";
 import { DEBUG_UI } from "./lib/flags";
 import { getWriteKey, hasWriteKey, setWriteKey } from "./lib/auth";
+import { getPlaceAtViewportCenter, setPlaceAtViewportCenter } from "./lib/preferences";
+import { clientToWorld } from "./lib/geometry";
 import { log } from "./lib/log";
 
 export default function App() {
@@ -23,6 +25,7 @@ export default function App() {
   const [keySet, setKeySet] = useState(hasWriteKey());
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
+  const [placeAtCenter, setPlaceAtCenter] = useState(getPlaceAtViewportCenter());
   // Dialogs are async (unlike window.prompt), so flows that need to retry after a
   // key is saved (initial load, write-failure recovery) stash their continuation here.
   const afterKeySavedRef = useRef<(() => void) | null>(null);
@@ -70,6 +73,25 @@ export default function App() {
   });
   const { startDrag } = useDrag({ canvasRef, viewRef, lastPointRef, onCommit: moveItem });
 
+  // Where a newly-added item should land: either the last known cursor
+  // position (default), or the current viewport center when that preference
+  // is on — useful when adding via the header buttons without ever moving
+  // the mouse over the canvas.
+  const getPlacementPoint = useCallback((): Point => {
+    const canvas = canvasRef.current;
+    if (!placeAtCenter || !canvas) return lastPointRef.current;
+    const rect = canvas.getBoundingClientRect();
+    return clientToWorld(canvas, rect.left + rect.width / 2, rect.top + rect.height / 2, viewRef.current);
+  }, [placeAtCenter, canvasRef, viewRef, lastPointRef]);
+
+  const handleTogglePlaceAtCenter = useCallback(() => {
+    setPlaceAtCenter((prev) => {
+      const next = !prev;
+      setPlaceAtViewportCenter(next);
+      return next;
+    });
+  }, []);
+
   const uploadAt = useCallback(
     async (files: File[], point: Point) => {
       try {
@@ -84,8 +106,8 @@ export default function App() {
   );
 
   const handleFiles = useCallback(
-    (files: File[]) => uploadAt(files, lastPointRef.current),
-    [uploadAt],
+    (files: File[]) => uploadAt(files, getPlacementPoint()),
+    [uploadAt, getPlacementPoint],
   );
 
   const handleAddNoteClick = useCallback(() => setNoteDialogOpen(true), []);
@@ -97,13 +119,13 @@ export default function App() {
       setNoteDialogOpen(false);
       try {
         setStatus("テキストを追加しています...");
-        await addNote(text, lastPointRef.current);
+        await addNote(text, getPlacementPoint());
         setStatus("テキストを追加しました。");
       } catch (error) {
         reportWriteError(error);
       }
     },
-    [addNote, setStatus, reportWriteError],
+    [addNote, setStatus, reportWriteError, getPlacementPoint],
   );
 
   const handleDelete = useCallback(
@@ -190,7 +212,7 @@ export default function App() {
         event.preventDefault();
         try {
           setStatus("貼り付け画像を追加しています...");
-          await addFiles(imageFiles, lastPointRef.current);
+          await addFiles(imageFiles, getPlacementPoint());
           setStatus(`${imageFiles.length} 件の画像を追加しました。`);
         } catch (error) {
           reportWriteError(error);
@@ -203,7 +225,7 @@ export default function App() {
       event.preventDefault();
       try {
         setStatus("貼り付けテキストを追加しています...");
-        await addNote(text, lastPointRef.current);
+        await addNote(text, getPlacementPoint());
         setStatus("テキストを追加しました。");
       } catch (error) {
         reportWriteError(error);
@@ -212,7 +234,7 @@ export default function App() {
 
     document.addEventListener("paste", onPaste);
     return () => document.removeEventListener("paste", onPaste);
-  }, [addFiles, addNote, setStatus, reportWriteError]);
+  }, [addFiles, addNote, setStatus, reportWriteError, getPlacementPoint]);
 
   return (
     <div className="app-shell">
@@ -226,6 +248,8 @@ export default function App() {
         writeProtected={writeProtected}
         keySet={keySet}
         onEditKey={openWriteKeyDialog}
+        placeAtCenter={placeAtCenter}
+        onTogglePlaceAtCenter={handleTogglePlaceAtCenter}
       />
       <BoardCanvas
         board={board}

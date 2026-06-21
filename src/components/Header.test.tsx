@@ -12,6 +12,8 @@ const baseProps = {
   writeProtected: false,
   keySet: false,
   onEditKey: vi.fn(),
+  placeAtCenter: false,
+  onTogglePlaceAtCenter: vi.fn(),
 };
 
 describe("Header", () => {
@@ -87,5 +89,26 @@ describe("Header", () => {
     render(<Header {...baseProps} writeProtected={true} keySet={true} onEditKey={onEditKey} />);
     fireEvent.click(screen.getByText("🔓 編集キー"));
     expect(onEditKey).toHaveBeenCalledOnce();
+  });
+
+  it("shows the cursor-position label when placeAtCenter is false", () => {
+    render(<Header {...baseProps} placeAtCenter={false} />);
+    const btn = screen.getByText("📍 カーソル位置に追加");
+    expect(btn).toBeTruthy();
+    expect((btn as HTMLElement).className).not.toContain("active");
+  });
+
+  it("shows the viewport-center label and active class when placeAtCenter is true", () => {
+    render(<Header {...baseProps} placeAtCenter={true} />);
+    const btn = screen.getByText("📍 画面中心に追加");
+    expect(btn).toBeTruthy();
+    expect((btn as HTMLElement).className).toContain("active");
+  });
+
+  it("calls onTogglePlaceAtCenter when the placement toggle is clicked", () => {
+    const onTogglePlaceAtCenter = vi.fn();
+    render(<Header {...baseProps} onTogglePlaceAtCenter={onTogglePlaceAtCenter} />);
+    fireEvent.click(screen.getByText("📍 カーソル位置に追加"));
+    expect(onTogglePlaceAtCenter).toHaveBeenCalledOnce();
   });
 });

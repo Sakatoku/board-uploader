@@ -13,6 +13,9 @@ interface Props {
   /** Whether a write key is currently stored locally. */
   keySet: boolean;
   onEditKey: () => void;
+  /** Whether new items are placed at the viewport center instead of the last cursor position. */
+  placeAtCenter: boolean;
+  onTogglePlaceAtCenter: () => void;
 }
 
 export function Header({
@@ -25,6 +28,8 @@ export function Header({
   writeProtected,
   keySet,
   onEditKey,
+  placeAtCenter,
+  onTogglePlaceAtCenter,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,6 +63,15 @@ export function Header({
         </label>
         <button className="button secondary" type="button" onClick={onAddNote}>
           テキスト追加
+        </button>
+        <button
+          className={`button secondary${placeAtCenter ? " active" : ""}`}
+          type="button"
+          onClick={onTogglePlaceAtCenter}
+          title="新規アイテムの追加位置を選択します"
+          aria-pressed={placeAtCenter}
+        >
+          {placeAtCenter ? "📍 画面中心に追加" : "📍 カーソル位置に追加"}
         </button>
         {showDebug && (
           <button className="button secondary" type="button" onClick={onToggleDebug}>
