@@ -766,6 +766,14 @@ h2 {
   color: var(--muted);
 }
 
+.qr-canvas {
+  display: block;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;

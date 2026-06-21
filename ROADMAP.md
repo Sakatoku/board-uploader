@@ -3,7 +3,7 @@
 Board Uploader の現状整理と今後の計画。
 方針・制約・ファイルマップ → [CLAUDE.md](./CLAUDE.md)
 
-最終更新: 2026-06-21（テキストファイルのリッチ編集を実装）
+最終更新: 2026-06-21（認証 Stage-2: 新デバイスへの編集キーQR受け渡しを実装）
 
 ---
 
@@ -16,7 +16,7 @@ Board Uploader の現状整理と今後の計画。
 | ストレージ | Vercel Blob（バイナリ＋ボードJSON）。`StorageProvider` で抽象化（vercel-blob / pcloud / mock） |
 | 整合性 | `cache:"no-store"` ＋ユニーククエリのオリジン直読みで解消。クライアントリトライを多層防御として継続 |
 | テスト | Vitest 171件（domain / handlers / gc / geometry / useDrag / markdown / コンポーネント）。jsdom 環境でフロントエンドテスト済み |
-| 認証 | Stage-1（書き込みゲート）実装済み。Stage-2（JWT Cookie + QR）は未着手 |
+| 認証 | Stage-1（書き込みゲート）実装済み。Stage-2（QRでの編集キー受け渡し、フロントエンドのみ）実装済み。読み取り保護は方針として実施しない |
 | CI | GitHub Actions（typecheck×2 + test + build）稼働中 |
 
 ---
@@ -36,6 +36,7 @@ Board Uploader の現状整理と今後の計画。
 - ✓ **デバッグログ UI のビルドフラグ限定**: `VITE_DEBUG_UI` ビルドフラグで既定オフ・ヘッダーの「デバッグ表示」トグルで開発時のみ表示可能に。
 - ✓ **アイテムのリネーム**: カードヘッダーの ✎ ボタン → モーダルで名前変更。PATCH `/api/boards/:boardId/items/:itemId` に `title` を追加（既存の x/y 更新と統合）。移動は既存のドラッグ＆ドロップで対応済み。
 - ✓ **テキストファイルのリッチ編集**: ノート本文クリックで行番号付きエディタを開いて編集（PATCH に `text` を追加）。表示側は依存ライブラリなしの自前 Markdown サブセットレンダラ（見出し/リスト/引用/コードブロック/太字/斜体/インラインコード/リンク）で `dangerouslySetInnerHTML` を使わず React 要素を直接構築（XSS面なし）。
+- ✓ **認証 Stage-2（新デバイスへの編集キー受け渡し）**: 当初案（JWT Cookie + QRワンタイムトークン + Blob直URLのプロキシ化）から方針変更し、フロントエンドのみの軽量版で実装。既に編集キーを持つデバイスがQRコード／リンク（URLフラグメント `#wk=<key>`）を生成 → 新デバイスが読み取ると自動でキーを保存（[AddDeviceDialog.tsx](./src/components/AddDeviceDialog.tsx)、[src/lib/auth.ts](./src/lib/auth.ts)）。フラグメントはサーバーに送信されないため鍵がアクセスログに残らない。キー保存は `localStorage → sessionStorage → メモリ` の順にフォールバック（プライベートブラウジング等で永続化できない環境向け）。バックエンドは無変更（JWT・Cookie・サーバー側セッションは作らない）。方針転換の理由は次項。
 
 ---
 
@@ -48,7 +49,9 @@ Board Uploader の現状整理と今後の計画。
 
 ### P3 — 仕上げ・将来
 
-- **認証 Stage-2**: JWT（HttpOnly cookie）+ QR ワンタイムトークンによるデバイス信頼転送。あわせて Blob 直 URL を関数プロキシ経由に切替（読み取り保護。`serveFile` は既に proxy 経路あり）。
+- **読み取り保護（やらない方針・リスク明文化）**: ボード/アイテムの読み取りは今後も無認証のまま。共有は「ボードURLを直接渡す」運用を前提とし、URLをテキストとして広く貼らないことで事実上の閲覧制限とする。リスク: URLが漏れれば誰でも閲覧可能（vercel-blob は公開アクセス前提で、Free Tierには署名付き private URL機能がない）。本気で保護するなら全ファイルバイトを毎回関数プロキシ経由にする必要があり、CDN直リダイレクトによる帯域節約（`serveFile`、[app.ts](./lib/app.ts)）を捨てることになる。個人利用の前提が崩れたら（例: 他人にもアカウントを発行する等）再検討。
+
+- **過去アップロードの自動削除（仕様未定）**: 古いアイテム/ボードを順次自動削除したい。削除基準（経過日数？最終アクセス？）・対象（ボード単位/アイテム単位）・実行トリガー（cron? アクセス時の遅延評価?）は未決定。Vercel Free Tier では常時稼働のバックグラウンドジョブが持てない点に注意（Vercel Cron Jobs の無料枠 or アクセス時のlazy GCを検討）。既存の孤立blob GC（[gc.ts](./lib/handlers/gc.ts)）と統合できるか確認してから設計する。
 
 - **公開 API（Phase 4）**: `/api/v1/`、OpenAPI 公開、AI フレンドリー化。
 

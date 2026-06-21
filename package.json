@@ -20,6 +20,7 @@
     "@vercel/blob": "^1.0.0",
     "express": "^5.2.1",
     "multer": "^2.1.1",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -28,6 +29,7 @@
     "@types/express": "^5.0.0",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.10.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.30",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.7.0",

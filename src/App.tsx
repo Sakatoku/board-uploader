@@ -10,9 +10,10 @@ import { AddNoteDialog } from "./components/AddNoteDialog";
 import { RenameDialog } from "./components/RenameDialog";
 import { TextEditDialog } from "./components/TextEditDialog";
 import { WriteKeyDialog } from "./components/WriteKeyDialog";
+import { AddDeviceDialog } from "./components/AddDeviceDialog";
 import { ApiError, getConfig } from "./lib/api";
 import { DEBUG_UI } from "./lib/flags";
-import { getWriteKey, hasWriteKey, setWriteKey } from "./lib/auth";
+import { consumeKeyFromLocation, getWriteKey, hasWriteKey, setWriteKey } from "./lib/auth";
 import { getPlaceAtViewportCenter, setPlaceAtViewportCenter } from "./lib/preferences";
 import { clientToWorld } from "./lib/geometry";
 import { log } from "./lib/log";
@@ -25,9 +26,16 @@ export default function App() {
   const viewRef = useRef<Viewport>({ panX: 0, panY: 0, zoom: 1 });
   const [debugOpen, setDebugOpen] = useState(false);
   const [writeProtected, setWriteProtected] = useState(false);
-  const [keySet, setKeySet] = useState(hasWriteKey());
+  // Lazy init runs before any effect, so a key delivered via a scanned "add
+  // device" QR code (#wk=...) is picked up before the config/board-load
+  // effects below check whether a key is set.
+  const [keySet, setKeySet] = useState(() => {
+    consumeKeyFromLocation();
+    return hasWriteKey();
+  });
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
+  const [addDeviceOpen, setAddDeviceOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<BoardItem | null>(null);
   const [textEditTarget, setTextEditTarget] = useState<NoteItem | null>(null);
   const [placeAtCenter, setPlaceAtCenter] = useState(getPlaceAtViewportCenter());
@@ -289,6 +297,7 @@ export default function App() {
         writeProtected={writeProtected}
         keySet={keySet}
         onEditKey={openWriteKeyDialog}
+        onAddDevice={() => setAddDeviceOpen(true)}
         placeAtCenter={placeAtCenter}
         onTogglePlaceAtCenter={handleTogglePlaceAtCenter}
       />
@@ -330,6 +339,7 @@ export default function App() {
         onSubmit={handleWriteKeySubmit}
         onCancel={handleWriteKeyCancel}
       />
+      <AddDeviceDialog open={addDeviceOpen} onClose={() => setAddDeviceOpen(false)} />
     </div>
   );
 }

@@ -4,7 +4,11 @@
  * when WRITE_API_KEY is unset the gate is disabled, so local dev and any
  * already-running deployment keep working until the key is configured.
  *
- * Stage 2 (JWT cookie + QR one-time token) layers on top of this later.
+ * Stage 2 ended up frontend-only: reads stay intentionally open (see
+ * CLAUDE.md "認証"), so there is no backend session/cookie here — a device
+ * already holding the key can hand it to a new device via a QR code / link
+ * (src/lib/auth.ts: buildKeyTransferUrl / consumeKeyFromLocation). This file
+ * is unchanged by that.
  */
 
 import { timingSafeEqual } from "node:crypto";

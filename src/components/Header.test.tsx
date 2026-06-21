@@ -12,6 +12,7 @@ const baseProps = {
   writeProtected: false,
   keySet: false,
   onEditKey: vi.fn(),
+  onAddDevice: vi.fn(),
   placeAtCenter: false,
   onTogglePlaceAtCenter: vi.fn(),
 };
@@ -110,5 +111,22 @@ describe("Header", () => {
     render(<Header {...baseProps} onTogglePlaceAtCenter={onTogglePlaceAtCenter} />);
     fireEvent.click(screen.getByText("📍 カーソル位置に追加"));
     expect(onTogglePlaceAtCenter).toHaveBeenCalledOnce();
+  });
+
+  it("hides the add-device button when writeProtected is false", () => {
+    render(<Header {...baseProps} writeProtected={false} keySet={true} />);
+    expect(screen.queryByText("📱 デバイス追加")).toBeNull();
+  });
+
+  it("hides the add-device button when no key is set yet", () => {
+    render(<Header {...baseProps} writeProtected={true} keySet={false} />);
+    expect(screen.queryByText("📱 デバイス追加")).toBeNull();
+  });
+
+  it("shows and wires the add-device button when protected and keyed", () => {
+    const onAddDevice = vi.fn();
+    render(<Header {...baseProps} writeProtected={true} keySet={true} onAddDevice={onAddDevice} />);
+    fireEvent.click(screen.getByText("📱 デバイス追加"));
+    expect(onAddDevice).toHaveBeenCalledOnce();
   });
 });

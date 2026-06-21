@@ -13,6 +13,8 @@ interface Props {
   /** Whether a write key is currently stored locally. */
   keySet: boolean;
   onEditKey: () => void;
+  /** Opens the QR/link dialog for transferring the write key to a new device. */
+  onAddDevice: () => void;
   /** Whether new items are placed at the viewport center instead of the last cursor position. */
   placeAtCenter: boolean;
   onTogglePlaceAtCenter: () => void;
@@ -28,6 +30,7 @@ export function Header({
   writeProtected,
   keySet,
   onEditKey,
+  onAddDevice,
   placeAtCenter,
   onTogglePlaceAtCenter,
 }: Props) {
@@ -45,6 +48,16 @@ export function Header({
             title="書き込みに必要な編集キーを設定します"
           >
             {keySet ? "🔓 編集キー" : "🔒 編集キー必須"}
+          </button>
+        )}
+        {writeProtected && keySet && (
+          <button
+            className="button secondary"
+            type="button"
+            onClick={onAddDevice}
+            title="QRコードまたはリンクで編集キーを別デバイスに渡します"
+          >
+            📱 デバイス追加
           </button>
         )}
         <label className="button secondary">
