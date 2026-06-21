@@ -10,10 +10,14 @@
  *   by anyone who knows its (unguessable) URL. That matches our current
  *   no-auth posture; Phase 2 auth must avoid handing these URLs to the client
  *   directly (proxy downloads through an authenticated route instead).
- * - Blob addresses by full URL, not by pathname, so to fetch a board by id we
- *   `list({ prefix })`. We memoise boardId -> url in-process to keep warm
- *   reads fast. `list` can lag a write by a moment (eventual consistency); the
- *   create→navigate→read flow tolerates this for a single user.
+ * - Blob addresses by full URL, not by pathname. Board documents are written
+ *   with `addRandomSuffix: false`, so their URL is fully deterministic:
+ *   `https://<storeId>.public.blob.vercel-storage.com/<pathname>`, where
+ *   storeId is embedded in BLOB_READ_WRITE_TOKEN. We try that direct URL
+ *   first (no network round-trip to resolve it, and no `list()` eventual
+ *   consistency lag) and only fall back to `list({ prefix })` if it 404s or
+ *   the store id can't be parsed (e.g. a non-Vercel token in tests). We
+ *   memoise boardId -> url in-process to keep warm reads fast either way.
  */
 
 import path from "node:path";
@@ -67,6 +71,23 @@ export class VercelBlobStorageProvider implements StorageProvider {
     return `boards/${boardId}.json`;
   }
 
+  /**
+   * Derive the board's URL straight from the token's store id, with no
+   * network call. Returns null when the token isn't a recognisable Vercel
+   * Blob token (e.g. mock/test tokens) so callers can fall back to `list()`.
+   */
+  private deterministicBoardUrl(boardId: string): string | null {
+    const token = this.token || process.env.BLOB_READ_WRITE_TOKEN;
+    if (!token) {
+      return null;
+    }
+    const storeId = token.split("_")[3];
+    if (!storeId) {
+      return null;
+    }
+    return `https://${storeId}.public.blob.vercel-storage.com/${this.boardPathname(boardId)}`;
+  }
+
   /** Resolve a board document's URL, using the cache then a prefix list. */
   private async findBoardUrl(boardId: string): Promise<string | null> {
     const cached = this.boardUrlCache.get(boardId);
@@ -85,26 +106,53 @@ export class VercelBlobStorageProvider implements StorageProvider {
     return null;
   }
 
+  /**
+   * Fetch and parse a board document from a known URL. Returns `undefined`
+   * (rather than throwing) on a 404 so the caller can try another URL.
+   */
+  private async readBoardFrom(url: string, boardId: string): Promise<Board | null | undefined> {
+    // Board JSON is mutable, but Vercel Blob serves every public URL through
+    // a CDN whose minimum cache TTL is 60s. After an overwrite (e.g. adding a
+    // note) a plain fetch of the stable URL can return the *pre-write* body
+    // for up to a minute, which makes freshly-added items 404 on the next
+    // request and "disappear". Bust the edge cache with a unique query string
+    // and disable the runtime fetch cache so reads are always read-after-write
+    // consistent.
+    let bytes: Buffer;
+    try {
+      bytes = await fetchBytes(`${url}?_cb=${Date.now()}`, { cache: "no-store" });
+    } catch (error) {
+      if (error instanceof BlobFetchError && error.status === 404) {
+        return undefined;
+      }
+      throw error;
+    }
+    try {
+      return JSON.parse(bytes.toString("utf8")) as Board;
+    } catch (error) {
+      logger.error("blob.board.parse_fail", { boardId, error });
+      throw new Error(`Board document for ${boardId} is corrupt`);
+    }
+  }
+
   readonly metadata: MetadataStore = {
     getBoard: async (boardId) => {
+      const cached = this.boardUrlCache.get(boardId);
+      const direct = cached ?? this.deterministicBoardUrl(boardId);
+      if (direct) {
+        const board = await this.readBoardFrom(direct, boardId);
+        if (board !== undefined) {
+          this.boardUrlCache.set(boardId, direct);
+          return board;
+        }
+        // Direct URL 404'd (or the cached entry is stale) - fall back below.
+      }
       const url = await this.findBoardUrl(boardId);
       if (!url) {
         return null;
       }
-      // Board JSON is mutable, but Vercel Blob serves every public URL through
-      // a CDN whose minimum cache TTL is 60s. After an overwrite (e.g. adding a
-      // note) a plain fetch of the stable URL can return the *pre-write* body
-      // for up to a minute, which makes freshly-added items 404 on the next
-      // request and "disappear". Bust the edge cache with a unique query string
-      // and disable the runtime fetch cache so reads are always read-after-write
-      // consistent.
-      const bytes = await fetchBytes(`${url}?_cb=${Date.now()}`, { cache: "no-store" });
-      try {
-        return JSON.parse(bytes.toString("utf8")) as Board;
-      } catch (error) {
-        logger.error("blob.board.parse_fail", { boardId, error });
-        throw new Error(`Board document for ${boardId} is corrupt`);
-      }
+      const board = await this.readBoardFrom(url, boardId);
+      return board ?? null;
     },
     putBoard: async (board) => {
       const result = await timed(
@@ -285,10 +333,16 @@ export class VercelBlobStorageProvider implements StorageProvider {
   }
 }
 
+class BlobFetchError extends Error {
+  constructor(public readonly status: number) {
+    super(`blob fetch failed: HTTP ${status}`);
+  }
+}
+
 async function fetchBytes(url: string, init?: RequestInit): Promise<Buffer> {
   const res = await fetch(url, init);
   if (!res.ok) {
-    throw new Error(`blob fetch failed: HTTP ${res.status}`);
+    throw new BlobFetchError(res.status);
   }
   return Buffer.from(await res.arrayBuffer());
 }

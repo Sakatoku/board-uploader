@@ -3,7 +3,7 @@
 Board Uploader の現状整理と今後の計画。
 方針・制約・ファイルマップ → [CLAUDE.md](./CLAUDE.md)
 
-最終更新: 2026-06-21（デバッグログ UI のビルドフラグ限定を完了済みに移動）
+最終更新: 2026-06-21（board URL 決定的導出を実装）
 
 ---
 
@@ -42,7 +42,7 @@ Board Uploader の現状整理と今後の計画。
 ### P2 — 状況を見て
 
 - **ボードメタデータ整合性（残リスク）**: 現状の cache-bust で実用上解消済み。再発した場合のみ Vercel KV / Upstash Redis へメタデータを移行。バイナリは Blob のまま。`StorageProvider` が metadata/blobs を分離済みなので差し替え可能。
-  - 先行策（インフラ不要）: `list()` に頼らずストア base URL + 決定的パス名から board URL を直接導出し伝播遅延を減らす。
+  - ✓ 先行策（インフラ不要）: `BLOB_READ_WRITE_TOKEN` からストア ID を抜き出し決定的 URL を直接導出、`list()`（eventual consistency）を経由せず読む。404 時のみ `list()` にフォールバック。
 
 ### P3 — 仕上げ・将来
 
