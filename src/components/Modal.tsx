@@ -5,10 +5,12 @@ interface Props {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  /** Extra class on the dialog box, e.g. for a wider variant. */
+  className?: string;
 }
 
 /** Generic dialog shell: backdrop click + Escape both close it. */
-export function Modal({ open, title, onClose, children }: Props) {
+export function Modal({ open, title, onClose, children, className }: Props) {
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -27,7 +29,7 @@ export function Modal({ open, title, onClose, children }: Props) {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="modal-dialog" role="dialog" aria-modal="true" aria-label={title}>
+      <div className={`modal-dialog${className ? ` ${className}` : ""}`} role="dialog" aria-modal="true" aria-label={title}>
         <header className="modal-header">
           <h3 className="modal-title">{title}</h3>
           <button type="button" className="modal-close" onClick={onClose} aria-label="閉じる">

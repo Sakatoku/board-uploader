@@ -6,7 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
-import type { Board, BoardItem, Point, Viewport } from "../types";
+import type { Board, BoardItem, NoteItem, Point, Viewport } from "../types";
 import { BoardItemView } from "./BoardItemView";
 import { clientToWorld, computeOffscreenIndicators } from "../lib/geometry";
 
@@ -26,6 +26,7 @@ interface Props {
   onDropFiles: (files: File[], point: Point) => void;
   onDelete: (itemId: string) => void;
   onRename: (item: BoardItem) => void;
+  onEditText: (item: NoteItem) => void;
 }
 
 // Grid spacing in world units; scaled by zoom for the background dot pattern.
@@ -47,6 +48,7 @@ export function BoardCanvas({
   onDropFiles,
   onDelete,
   onRename,
+  onEditText,
 }: Props) {
   const [dragover, setDragover] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
@@ -117,6 +119,7 @@ export function BoardCanvas({
               onDragStart={onDragStart}
               onDelete={onDelete}
               onRename={onRename}
+              onEditText={onEditText}
             />
           ))}
       </div>

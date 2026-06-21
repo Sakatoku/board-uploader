@@ -356,8 +356,78 @@ h2 {
 }
 
 .note-text {
-  white-space: pre-wrap;
   line-height: 1.55;
+  cursor: pointer;
+}
+
+.note-text > :first-child {
+  margin-top: 0;
+}
+
+.note-text > :last-child {
+  margin-bottom: 0;
+}
+
+.note-text h1,
+.note-text h2,
+.note-text h3 {
+  margin: 10px 0 6px;
+  line-height: 1.3;
+}
+
+.note-text h1 {
+  font-size: 1.25em;
+}
+
+.note-text h2 {
+  font-size: 1.1em;
+}
+
+.note-text h3 {
+  font-size: 1em;
+}
+
+.note-text p {
+  margin: 0 0 8px;
+}
+
+.note-text ul,
+.note-text ol {
+  margin: 0 0 8px;
+  padding-left: 22px;
+}
+
+.note-text blockquote {
+  margin: 0 0 8px;
+  padding-left: 10px;
+  border-left: 2px solid var(--panel-border);
+  color: var(--muted);
+}
+
+.note-text code {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 0.9em;
+}
+
+.md-code-block {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.06);
+  overflow-x: auto;
+}
+
+.md-code-block code {
+  background: none;
+  padding: 0;
+  font-size: 0.85em;
+}
+
+.note-text a {
+  color: var(--accent);
 }
 
 .image-frame {
@@ -565,6 +635,10 @@ h2 {
   overflow: hidden;
 }
 
+.modal-dialog.wide {
+  width: min(640px, calc(100vw - 32px));
+}
+
 .modal-header {
   display: flex;
   align-items: center;
@@ -620,6 +694,45 @@ h2 {
 .modal-textarea {
   resize: vertical;
   min-height: 100px;
+}
+
+.line-editor {
+  display: flex;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  height: 320px;
+}
+
+.line-editor-gutter {
+  flex-shrink: 0;
+  overflow: hidden;
+  padding: 10px 8px;
+  text-align: right;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.03);
+  border-right: 1px solid var(--panel-border);
+  user-select: none;
+}
+
+.line-editor-gutter,
+.line-editor-textarea {
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.line-editor-textarea {
+  flex: 1 1 auto;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  padding: 10px 12px;
+  white-space: pre;
+  overflow: auto;
 }
 
 .password-field {

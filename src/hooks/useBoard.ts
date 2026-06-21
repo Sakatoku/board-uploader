@@ -29,6 +29,8 @@ export interface UseBoard {
   moveItem: (itemId: string, x: number, y: number) => Promise<void>;
   /** Optimistically rename an item locally, then persist (retrying on 404). */
   renameItem: (itemId: string, title: string) => Promise<void>;
+  /** Optimistically edit a note's text locally, then persist (retrying on 404). */
+  editNoteText: (itemId: string, text: string) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
 }
 
@@ -126,6 +128,36 @@ export function useBoard(): UseBoard {
     [setBoard],
   );
 
+  const editNoteText = useCallback(
+    async (itemId: string, text: string) => {
+      const current = boardRef.current;
+      if (!current) return;
+
+      const optimistic: Board = {
+        ...current,
+        items: current.items.map((item) =>
+          item.id === itemId && item.type === "note" ? { ...item, text } : item,
+        ),
+      };
+      setBoard(optimistic);
+
+      try {
+        const updated = await api.editNoteText(current.id, itemId, text);
+        const latest = boardRef.current ?? optimistic;
+        setBoard({
+          ...latest,
+          items: latest.items.map((item) => (item.id === itemId ? updated : item)),
+        });
+        setStatus("テキストを編集しました。");
+      } catch (error) {
+        setBoard(current);
+        const message = error instanceof Error ? error.message : String(error);
+        setStatus(`テキストの編集に失敗しました: ${message}`);
+      }
+    },
+    [setBoard],
+  );
+
   const removeItem = useCallback(
     async (itemId: string) => {
       const current = boardRef.current;
@@ -150,5 +182,16 @@ export function useBoard(): UseBoard {
     [setBoard],
   );
 
-  return { board, status, setStatus, refresh, addNote, addFiles, moveItem, renameItem, removeItem };
+  return {
+    board,
+    status,
+    setStatus,
+    refresh,
+    addNote,
+    addFiles,
+    moveItem,
+    renameItem,
+    editNoteText,
+    removeItem,
+  };
 }

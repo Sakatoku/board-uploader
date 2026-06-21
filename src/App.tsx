@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { BoardItem, Point, Viewport } from "./types";
+import type { BoardItem, NoteItem, Point, Viewport } from "./types";
 import { useBoard } from "./hooks/useBoard";
 import { useDrag } from "./hooks/useDrag";
 import { useViewport } from "./hooks/useViewport";
@@ -8,6 +8,7 @@ import { BoardCanvas } from "./components/BoardCanvas";
 import { DebugPanel } from "./components/DebugPanel";
 import { AddNoteDialog } from "./components/AddNoteDialog";
 import { RenameDialog } from "./components/RenameDialog";
+import { TextEditDialog } from "./components/TextEditDialog";
 import { WriteKeyDialog } from "./components/WriteKeyDialog";
 import { ApiError, getConfig } from "./lib/api";
 import { DEBUG_UI } from "./lib/flags";
@@ -17,7 +18,8 @@ import { clientToWorld } from "./lib/geometry";
 import { log } from "./lib/log";
 
 export default function App() {
-  const { board, status, setStatus, refresh, addNote, addFiles, moveItem, renameItem, removeItem } = useBoard();
+  const { board, status, setStatus, refresh, addNote, addFiles, moveItem, renameItem, editNoteText, removeItem } =
+    useBoard();
   const canvasRef = useRef<HTMLElement>(null);
   const lastPointRef = useRef<Point>({ x: 60, y: 60 });
   const viewRef = useRef<Viewport>({ panX: 0, panY: 0, zoom: 1 });
@@ -27,6 +29,7 @@ export default function App() {
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<BoardItem | null>(null);
+  const [textEditTarget, setTextEditTarget] = useState<NoteItem | null>(null);
   const [placeAtCenter, setPlaceAtCenter] = useState(getPlaceAtViewportCenter());
   // Dialogs are async (unlike window.prompt), so flows that need to retry after a
   // key is saved (initial load, write-failure recovery) stash their continuation here.
@@ -159,6 +162,24 @@ export default function App() {
     [renameTarget, renameItem, reportWriteError],
   );
 
+  const handleEditTextClick = useCallback((item: NoteItem) => setTextEditTarget(item), []);
+
+  const handleEditTextCancel = useCallback(() => setTextEditTarget(null), []);
+
+  const handleEditTextSubmit = useCallback(
+    async (text: string) => {
+      const target = textEditTarget;
+      setTextEditTarget(null);
+      if (!target) return;
+      try {
+        await editNoteText(target.id, text);
+      } catch (error) {
+        reportWriteError(error);
+      }
+    },
+    [textEditTarget, editNoteText, reportWriteError],
+  );
+
   const handleCopyLink = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -287,6 +308,7 @@ export default function App() {
         onDropFiles={uploadAt}
         onDelete={handleDelete}
         onRename={handleRenameClick}
+        onEditText={handleEditTextClick}
       />
       {DEBUG_UI && <DebugPanel open={debugOpen} onClose={() => setDebugOpen(false)} onCopyStatus={setStatus} />}
       <AddNoteDialog open={noteDialogOpen} onSubmit={handleAddNoteSubmit} onCancel={handleAddNoteCancel} />
@@ -295,6 +317,12 @@ export default function App() {
         initialValue={renameTarget?.title ?? ""}
         onSubmit={handleRenameSubmit}
         onCancel={handleRenameCancel}
+      />
+      <TextEditDialog
+        open={textEditTarget !== null}
+        initialValue={textEditTarget?.text ?? ""}
+        onSubmit={handleEditTextSubmit}
+        onCancel={handleEditTextCancel}
       />
       <WriteKeyDialog
         open={keyDialogOpen}

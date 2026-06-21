@@ -228,6 +228,11 @@ export async function renameItem(boardId: string, itemId: string, title: string)
   return payload.item;
 }
 
+export async function editNoteText(boardId: string, itemId: string, text: string): Promise<BoardItem> {
+  const payload = await patchItemWithRetry<{ item: BoardItem }>(boardId, itemId, { text });
+  return payload.item;
+}
+
 export const contentUrl = (boardId: string, itemId: string) =>
   `/api/boards/${boardId}/items/${itemId}/content`;
 

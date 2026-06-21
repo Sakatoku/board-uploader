@@ -154,7 +154,7 @@ export function createApp(): Express {
       getStorage(),
       param(req, "boardId"),
       param(req, "itemId"),
-      { x: req.body?.x, y: req.body?.y, title: req.body?.title },
+      { x: req.body?.x, y: req.body?.y, title: req.body?.title, text: req.body?.text },
     );
     res.json(result);
   }));

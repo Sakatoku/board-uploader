@@ -1,7 +1,8 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import type { BoardItem } from "../types";
+import type { BoardItem, NoteItem } from "../types";
 import { isFileItem } from "../types";
 import { contentUrl, downloadUrl } from "../lib/api";
+import { renderMarkdown } from "../lib/markdown";
 import { log } from "../lib/log";
 
 function formatBytes(size: number): string {
@@ -101,9 +102,10 @@ interface Props {
   onDragStart: (item: BoardItem, element: HTMLElement, header: HTMLElement, event: ReactPointerEvent) => void;
   onDelete: (itemId: string) => void;
   onRename: (item: BoardItem) => void;
+  onEditText: (item: NoteItem) => void;
 }
 
-export function BoardItemView({ boardId, item, onDragStart, onDelete, onRename }: Props) {
+export function BoardItemView({ boardId, item, onDragStart, onDelete, onRename, onEditText }: Props) {
   const articleRef = useRef<HTMLElement>(null);
 
   const handlePointerDown = (event: ReactPointerEvent) => {
@@ -152,7 +154,18 @@ export function BoardItemView({ boardId, item, onDragStart, onDelete, onRename }
       </header>
       <div className="item-body">
         {item.type === "note" && !isFileItem(item) ? (
-          <div className="note-text">{item.text}</div>
+          <div
+            className="note-text"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              // Let links inside the rendered markdown navigate normally.
+              if ((event.target as HTMLElement).closest("a")) return;
+              onEditText(item);
+            }}
+            title="クリックして編集"
+          >
+            {renderMarkdown(item.text)}
+          </div>
         ) : isFileItem(item) ? (
           <>
             {item.type === "image" && (

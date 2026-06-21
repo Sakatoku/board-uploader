@@ -165,6 +165,35 @@ describe("updateItem", () => {
     expect(result.item.y).toBe(5);
     expect(result.item.title).toBe("Renamed");
   });
+
+  it("updates a note's text", async () => {
+    const boardId = await newBoardId();
+    const { item } = await addNote(storage, boardId, { text: "old" });
+    const result = await updateItem(storage, boardId, item.id, { text: "  # new text  " });
+    expect(result.item.type).toBe("note");
+    expect((result.item as { text: string }).text).toBe("# new text");
+  });
+
+  it("rejects empty text", async () => {
+    const boardId = await newBoardId();
+    const { item } = await addNote(storage, boardId, { text: "old" });
+    await expect(updateItem(storage, boardId, item.id, { text: "   " })).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+
+  it("rejects text edits on file items", async () => {
+    const boardId = await newBoardId();
+    const { items } = await addFiles(
+      storage,
+      boardId,
+      [{ data: Buffer.from("x"), originalName: "a.png", mimeType: "image/png", size: 1 }],
+      {},
+    );
+    await expect(
+      updateItem(storage, boardId, items[0].id, { text: "hi" }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
 });
 
 describe("deleteItem", () => {

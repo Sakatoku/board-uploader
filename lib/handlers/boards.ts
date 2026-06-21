@@ -12,6 +12,7 @@ import type { Board, BoardItem, FileItem } from "../domain/types";
 import { isFileItem } from "../domain/types";
 import {
   findItem,
+  LIMITS,
   makeBoard,
   makeFileItem,
   makeNoteItem,
@@ -211,14 +212,14 @@ function isAllowedBlobUrl(url: string): boolean {
 }
 
 /**
- * Partial update of an item: position (x and y together), title, or both in
- * one PATCH. At least one of the two must be present.
+ * Partial update of an item: position (x and y together), title, note text,
+ * or any combination in one PATCH. At least one field must be present.
  */
 export async function updateItem(
   storage: StorageProvider,
   boardId: string,
   itemId: string,
-  input: { x?: unknown; y?: unknown; title?: unknown },
+  input: { x?: unknown; y?: unknown; title?: unknown; text?: unknown },
 ): Promise<{ item: BoardItem }> {
   const board = await loadBoard(storage, boardId);
   const item = findItem(board, itemId);
@@ -228,7 +229,8 @@ export async function updateItem(
 
   const hasPosition = input.x !== undefined || input.y !== undefined;
   const hasTitle = input.title !== undefined;
-  if (!hasPosition && !hasTitle) {
+  const hasText = input.text !== undefined;
+  if (!hasPosition && !hasTitle && !hasText) {
     throw badRequest("Nothing to update.");
   }
 
@@ -250,11 +252,25 @@ export async function updateItem(
     item.title = title;
   }
 
+  if (hasText) {
+    if (item.type !== "note") {
+      throw badRequest("Only notes have editable text.");
+    }
+    const text = typeof input.text === "string" ? input.text.trim() : "";
+    if (!text) {
+      throw badRequest("Text is required.");
+    }
+    item.text = text.slice(0, LIMITS.noteMaxLength);
+  }
+
   item.updatedAt = new Date().toISOString();
   touchBoard(board);
   await storage.metadata.putBoard(board);
   if (hasTitle) {
     logger.info("item.rename", { boardId, itemId, title: item.title });
+  }
+  if (hasText) {
+    logger.info("item.text_edit", { boardId, itemId });
   }
 
   return { item };
