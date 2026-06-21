@@ -37,6 +37,34 @@ export function zoomToward(
 }
 
 /**
+ * Compute a viewport that frames a world-space bounding box within a canvas
+ * of the given size, centered, with `padding` screen px of margin. Returns
+ * null when the box has no area (nothing to fit, e.g. an empty board).
+ */
+export function fitBounds(
+  bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  canvasSize: { width: number; height: number },
+  padding = 48,
+): Viewport | null {
+  const boundsWidth = bounds.maxX - bounds.minX;
+  const boundsHeight = bounds.maxY - bounds.minY;
+  if (boundsWidth <= 0 || boundsHeight <= 0) {
+    return null;
+  }
+
+  const availWidth = Math.max(canvasSize.width - padding * 2, 1);
+  const availHeight = Math.max(canvasSize.height - padding * 2, 1);
+  const zoom = clampZoom(Math.min(availWidth / boundsWidth, availHeight / boundsHeight));
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const centerY = (bounds.minY + bounds.maxY) / 2;
+  return {
+    zoom,
+    panX: canvasSize.width / 2 - centerX * zoom,
+    panY: canvasSize.height / 2 - centerY * zoom,
+  };
+}
+
+/**
  * Convert a client (viewport) coordinate into a *world* (board) coordinate
  * under the current pan/zoom. Inverse of the `.board-world` transform:
  *   screen = rect.origin + pan + world * zoom

@@ -18,6 +18,7 @@ interface Props {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetView: () => void;
+  onFitToContent: () => void;
   onDragStart: (item: BoardItem, element: HTMLElement, header: HTMLElement, event: ReactPointerEvent) => void;
   onDropFiles: (files: File[], point: Point) => void;
   onDelete: (itemId: string) => void;
@@ -36,6 +37,7 @@ export function BoardCanvas({
   onZoomIn,
   onZoomOut,
   onResetView,
+  onFitToContent,
   onDragStart,
   onDropFiles,
   onDelete,
@@ -91,6 +93,16 @@ export function BoardCanvas({
       </div>
 
       <div className="zoom-controls">
+        <button
+          type="button"
+          className="zoom-button"
+          onClick={onFitToContent}
+          disabled={items.length === 0}
+          aria-label="全アイテムを表示"
+          title="全アイテムを表示"
+        >
+          ⛶
+        </button>
         <button type="button" className="zoom-button" onClick={onZoomOut} aria-label="縮小">
           −
         </button>

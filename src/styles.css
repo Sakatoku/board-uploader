@@ -195,6 +195,15 @@ h2 {
   background: rgba(255, 255, 255, 0.14);
 }
 
+.zoom-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.zoom-button:disabled:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .status-message {
   position: absolute;
   left: 16px;

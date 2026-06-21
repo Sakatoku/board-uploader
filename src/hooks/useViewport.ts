@@ -8,7 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import type { Viewport } from "../types";
-import { zoomToward } from "../lib/geometry";
+import { zoomToward, fitBounds } from "../lib/geometry";
 import { log } from "../lib/log";
 
 const ZOOM_STEP = 1.2;
@@ -27,6 +27,8 @@ export interface UseViewport {
   zoomIn: () => void;
   zoomOut: () => void;
   reset: () => void;
+  /** Pan/zoom so every rendered board item is visible. No-op when the board is empty. */
+  fitToContent: () => void;
 }
 
 /** Live pinch/pan gesture against a stable set of active pointers. */
@@ -87,6 +89,35 @@ export function useViewport({ canvasRef, viewRef }: UseViewportArgs): UseViewpor
   const zoomIn = useCallback(() => zoomByCenter(ZOOM_STEP), [zoomByCenter]);
   const zoomOut = useCallback(() => zoomByCenter(1 / ZOOM_STEP), [zoomByCenter]);
   const reset = useCallback(() => setView({ panX: 0, panY: 0, zoom: 1 }), [setView]);
+
+  // Measure rendered item positions/sizes directly from the DOM: item x/y come
+  // from board data, but width/height depend on content (image dimensions,
+  // note text length, …) and aren't stored anywhere else.
+  const fitToContent = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    canvas.querySelectorAll<HTMLElement>(".board-item").forEach((el) => {
+      const x = parseFloat(el.style.left);
+      const y = parseFloat(el.style.top);
+      if (Number.isNaN(x) || Number.isNaN(y)) return;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + el.offsetWidth);
+      maxY = Math.max(maxY, y + el.offsetHeight);
+    });
+    if (!Number.isFinite(minX)) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const next = fitBounds({ minX, minY, maxX, maxY }, { width: rect.width, height: rect.height });
+    if (next) {
+      setView(next);
+    }
+  }, [canvasRef, setView]);
 
   // Wheel: ctrl/cmd (or trackpad pinch) zooms toward the cursor; otherwise pan.
   useEffect(() => {
@@ -212,5 +243,5 @@ export function useViewport({ canvasRef, viewRef }: UseViewportArgs): UseViewpor
     log("viewport", `pan=(${Math.round(view.panX)},${Math.round(view.panY)}) zoom=${view.zoom.toFixed(2)}`);
   }, [view]);
 
-  return { view, onBackgroundPointerDown, panning, zoomIn, zoomOut, reset };
+  return { view, onBackgroundPointerDown, panning, zoomIn, zoomOut, reset, fitToContent };
 }

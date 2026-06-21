@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Viewport } from "../types";
-import { clampZoom, zoomToward, clientToWorld, MIN_ZOOM, MAX_ZOOM } from "./geometry";
+import { clampZoom, zoomToward, clientToWorld, fitBounds, MIN_ZOOM, MAX_ZOOM } from "./geometry";
 
 /** Minimal canvas stub: clientToWorld only reads rect.left / rect.top. */
 function canvasAt(left: number, top: number): HTMLElement {
@@ -62,6 +62,39 @@ describe("zoomToward", () => {
     expect(back.zoom).toBe(1);
     expect(back.panX).toBeCloseTo(view.panX, 6);
     expect(back.panY).toBeCloseTo(view.panY, 6);
+  });
+});
+
+describe("fitBounds", () => {
+  it("centers the bounding box and picks the limiting axis's zoom", () => {
+    const bounds = { minX: 0, minY: 0, maxX: 200, maxY: 100 };
+    const canvasSize = { width: 1000, height: 500 };
+    const result = fitBounds(bounds, canvasSize, 0);
+
+    // width ratio = 1000/200 = 5, height ratio = 500/100 = 5 -> tie, clamp to MAX_ZOOM
+    expect(result?.zoom).toBe(MAX_ZOOM);
+    // content center (100,50) must land on the canvas center (500,250)
+    expect(result?.panX).toBeCloseTo(500 - 100 * MAX_ZOOM, 6);
+    expect(result?.panY).toBeCloseTo(250 - 50 * MAX_ZOOM, 6);
+  });
+
+  it("shrinks zoom to fit large content within padding", () => {
+    const bounds = { minX: 0, minY: 0, maxX: 2000, maxY: 1000 };
+    const canvasSize = { width: 1000, height: 600 };
+    const result = fitBounds(bounds, canvasSize, 50);
+
+    // avail = 900x500; ratios = 0.45, 0.5 -> zoom = 0.45
+    expect(result?.zoom).toBeCloseTo(0.45, 6);
+  });
+
+  it("clamps zoom to the allowed range", () => {
+    const tiny = fitBounds({ minX: 0, minY: 0, maxX: 1, maxY: 1 }, { width: 1000, height: 1000 });
+    expect(tiny?.zoom).toBe(MAX_ZOOM);
+  });
+
+  it("returns null for a zero-area bounding box", () => {
+    expect(fitBounds({ minX: 10, minY: 10, maxX: 10, maxY: 50 }, { width: 800, height: 600 })).toBeNull();
+    expect(fitBounds({ minX: 10, minY: 10, maxX: 50, maxY: 10 }, { width: 800, height: 600 })).toBeNull();
   });
 });
 
